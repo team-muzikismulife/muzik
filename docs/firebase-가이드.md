@@ -28,6 +28,9 @@ firebase emulators:start --only firestore
 
 따라서 곡 등록은 **트랙 문서 생성 + 멤버 문서 갱신을 하나의 배치로** 실행해야 규칙을 통과합니다.
 
+또한 트랙 생성은 **해당 날짜(`dayId`) 문서가 서버에 존재하고 `closed != true`** 일 때만 허용됩니다.
+→ 날짜/테마 문서는 Cloud Functions가 매일 자정에 생성하므로, 그 전에는 제출이 거부됩니다. (자정 마감 정책과 연동)
+
 ### Swift 예시 (Firestore)
 ```swift
 let db = Firestore.firestore()

@@ -27,8 +27,10 @@ service cloud.firestore {
 
     // ── 방(Room) ──
     match /rooms/{roomId} {
-      // 초대 링크로 roomId를 알면 입장할 수 있어야 하므로 인증된 사용자는 읽기 허용
-      allow read: if isSignedIn();
+      // 초대 링크로 roomId를 알면 개별 조회(get)는 허용하되,
+      // 컬렉션 나열(list)은 막아 방 열거(enumeration)를 차단
+      allow get: if isSignedIn();
+      allow list: if false;
 
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid
@@ -42,11 +44,14 @@ service cloud.firestore {
 
       // ── 멤버(Member) ──
       match /members/{uid} {
-        allow read: if isSignedIn();
+        // 멤버 목록/닉네임은 같은 방 멤버만 읽을 수 있음
+        allow read: if isSignedIn() && isMember(roomId);
 
         // 본인 멤버 문서만 생성/수정 (닉네임, 하루1곡 판정용 lastSubmittedDate)
+        // 상위 방이 실제로 존재할 때만 허용 → 임의 roomId로 멤버 위조 후 isMember 우회 차단
         allow create, update: if isSignedIn()
           && uid == request.auth.uid
+          && exists(/databases/$(database)/documents/rooms/$(roomId))
           && request.resource.data.nickname is string
           && request.resource.data.nickname.size() > 0
           && request.resource.data.nickname.size() <= 20;
@@ -57,12 +62,12 @@ service cloud.firestore {
       // ── 일자별 문서(Day) ──
       // 날짜=문서키. 테마 배정·자정 마감은 Cloud Functions(Admin)만 처리하므로 클라 쓰기 금지.
       match /days/{dayId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && isMember(roomId);
         allow write: if false;
 
         // ── 트랙(Track) ──
         match /tracks/{trackId} {
-          allow read: if isSignedIn();
+          allow read: if isSignedIn() && isMember(roomId);
 
           allow create: if isSignedIn()
             && isMember(roomId)
@@ -74,6 +79,9 @@ service cloud.firestore {
             && request.resource.data.title is string
             && request.resource.data.comment is string
             && request.resource.data.comment.size() <= 30
+            // 서버가 만든 오늘 날짜 문서가 존재하고, 마감(closed)되지 않았어야 함
+            && exists(/databases/$(database)/documents/rooms/$(roomId)/days/$(dayId))
+            && get(/databases/$(database)/documents/rooms/$(roomId)/days/$(dayId)).data.closed != true
             // 하루 1곡 강제:
             //  - 같은 배치 쓰기에서 member.lastSubmittedDate 가 오늘(dayId)로 갱신되어야 하고
             //  - 갱신 이전 값은 오늘이 아니어야 함(중복 제출 차단)
