@@ -1,0 +1,94 @@
+rules_version = '2';
+
+// ──────────────────────────────────────────────────
+// MUZIK IS MY LIFE — Firestore Security Rules
+// 데이터 모델: docs/기능명세서.md 참고
+// 핵심 정책: 익명 인증 필수 · 하루 1곡 · 소유권/멤버십 검증
+// ──────────────────────────────────────────────────
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── 공통 헬퍼 ──
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(roomId) {
+      return exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
+    }
+
+    function memberDoc(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid)).data;
+    }
+
+    function memberDocAfter(roomId) {
+      return getAfter(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid)).data;
+    }
+
+    // ── 방(Room) ──
+    match /rooms/{roomId} {
+      // 초대 링크로 roomId를 알면 입장할 수 있어야 하므로 인증된 사용자는 읽기 허용
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 40;
+
+      // 방 정보 수정/삭제는 방장만
+      allow update, delete: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid;
+
+      // ── 멤버(Member) ──
+      match /members/{uid} {
+        allow read: if isSignedIn();
+
+        // 본인 멤버 문서만 생성/수정 (닉네임, 하루1곡 판정용 lastSubmittedDate)
+        allow create, update: if isSignedIn()
+          && uid == request.auth.uid
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && request.resource.data.nickname.size() <= 20;
+
+        allow delete: if false;
+      }
+
+      // ── 일자별 문서(Day) ──
+      // 날짜=문서키. 테마 배정·자정 마감은 Cloud Functions(Admin)만 처리하므로 클라 쓰기 금지.
+      match /days/{dayId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+
+        // ── 트랙(Track) ──
+        match /tracks/{trackId} {
+          allow read: if isSignedIn();
+
+          allow create: if isSignedIn()
+            && isMember(roomId)
+            // 제출자는 본인이어야 함
+            && request.resource.data.submittedByUid == request.auth.uid
+            // 필수 필드 및 코멘트 30자 제한
+            && request.resource.data.videoId is string
+            && request.resource.data.videoId.size() > 0
+            && request.resource.data.title is string
+            && request.resource.data.comment is string
+            && request.resource.data.comment.size() <= 30
+            // 하루 1곡 강제:
+            //  - 같은 배치 쓰기에서 member.lastSubmittedDate 가 오늘(dayId)로 갱신되어야 하고
+            //  - 갱신 이전 값은 오늘이 아니어야 함(중복 제출 차단)
+            && memberDocAfter(roomId).lastSubmittedDate == dayId
+            && memberDoc(roomId).lastSubmittedDate != dayId;
+
+          // 트랙 수정/삭제는 클라 금지 (모더레이션/마감은 서버에서 처리)
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    // 그 외 경로는 모두 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
