@@ -26,11 +26,11 @@ module.exports = {
     // 기본으로 켜져있는 까다로운 영어 대소문자 제한 규칙은 끕니다.
     "subject-case": [0, "always"],
 
-    // convention.md 문서와 일치하도록 허용 타입 명시 (design 포함)
+    // convention.md 문서에 정의된 타입만 허용 (문서-설정 일치)
     "type-enum": [
       2,
       "always",
-      ["feat", "fix", "design", "refactor", "docs", "chore", "test", "style", "perf", "ci", "build", "revert"],
+      ["feat", "fix", "design", "refactor", "docs", "chore", "test"],
     ],
   },
 };

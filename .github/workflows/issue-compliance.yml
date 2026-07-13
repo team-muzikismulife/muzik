@@ -22,8 +22,8 @@ jobs:
             exit 1
           fi
 
-          # 2. 내용 규칙 확인 (개발자가 내용을 채우지 않고 '- ' 빈 상태로 둔 경우)
-          if echo "$ISSUE_BODY" | grep -q "^\- $"; then
+          # 2. 내용 규칙 확인 (앞에 공백/탭이 있어도 빈 '- ' 항목이면 검출)
+          if echo "$ISSUE_BODY" | grep -qE "^[[:space:]]*-[[:space:]]*$"; then
             echo "❌ 이슈 내용 중 비어 있는 항목('- ')이 있습니다. 어떻게, 왜 필요한지 구체적으로 작성해주세요."
             exit 1
           fi
