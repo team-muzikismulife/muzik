@@ -9,7 +9,6 @@ opt_in_rules:
   - force_unwrapping      # 강제 언래핑(!) 지양 — 크래시 방지
   - closure_spacing
   - first_where
-  - unused_import
 
 excluded:
   - Pods

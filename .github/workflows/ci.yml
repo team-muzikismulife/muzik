@@ -32,7 +32,13 @@ jobs:
         run: brew install swiftlint
 
       - name: 린트 실행
-        run: swiftlint lint --reporter github-actions-logging
+        run: |
+          # Swift 파일이 아직 없으면(프로젝트 생성 전) 통과 처리
+          if [ -z "$(find . -name '*.swift' -not -path './.build/*' -print -quit)" ]; then
+            echo "✅ 린트할 Swift 파일이 아직 없습니다 — 통과."
+            exit 0
+          fi
+          swiftlint lint --reporter github-actions-logging
 
   # ──────────────────────────────────────────────
   # 2) Xcode 빌드 & 테스트
