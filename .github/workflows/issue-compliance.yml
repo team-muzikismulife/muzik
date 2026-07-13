@@ -1,0 +1,31 @@
+name: 이슈 템플릿 검사 (Compliance Check)
+
+permissions:
+  issues: read
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  check-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 제목 및 내용 양식 검사
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          # 1. 제목 규칙 확인 ([FEAT] 또는 [BUG] 포함 여부)
+          if [[ ! "$ISSUE_TITLE" =~ ^\[(FEAT|BUG)\] ]]; then
+            echo "❌ 이슈 제목은 템플릿에 지정된 방식인 [FEAT] 또는 [BUG] 접두어로 시작해야 합니다."
+            exit 1
+          fi
+
+          # 2. 내용 규칙 확인 (개발자가 내용을 채우지 않고 '- ' 빈 상태로 둔 경우)
+          if echo "$ISSUE_BODY" | grep -q "^\- $"; then
+            echo "❌ 이슈 내용 중 비어 있는 항목('- ')이 있습니다. 어떻게, 왜 필요한지 구체적으로 작성해주세요."
+            exit 1
+          fi
+
+          echo "✅ 이슈 템플릿 검사 통과 성공!"

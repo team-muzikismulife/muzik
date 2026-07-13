@@ -1,0 +1,73 @@
+# ──────────────────────────────────────────────
+# macOS
+# ──────────────────────────────────────────────
+.DS_Store
+*.swp
+
+# ──────────────────────────────────────────────
+# Xcode
+# ──────────────────────────────────────────────
+build/
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# CocoaPods (사용 시)
+Pods/
+
+# Carthage (사용 시)
+Carthage/Build/
+
+# fastlane (사용 시)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# ──────────────────────────────────────────────
+# 🔐 시크릿 — 절대 커밋 금지
+# ──────────────────────────────────────────────
+# Firebase 설정 (팀원끼리 별도 채널로 공유)
+GoogleService-Info.plist
+# API 키 등 로컬 시크릿 (Secrets.example.xcconfig만 커밋)
+Secrets.xcconfig
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+
+# ──────────────────────────────────────────────
+# Node 툴링 (commitlint/husky 전용)
+# ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ──────────────────────────────────────────────
+# AI & 로컬 설정 / 문서 원본
+# ──────────────────────────────────────────────
+.claude/
+*.pdf
+*.docx
+
+# 임시 스크래치
+/scratch
