@@ -20,28 +20,26 @@ firebase emulators:start --only firestore
 
 ---
 
-## 4. ⚠️ 클라이언트 필수 규칙: "하루 1곡"은 **배치 쓰기**로
+## 4. ⚠️ 클라이언트 필수 규칙: "하루 1곡"은 **트랙 ID = 사용자 UID**
 
-`firestore.rules`는 트랙 생성 시 아래를 강제합니다:
-- 같은 배치(WriteBatch)에서 `members/{uid}.lastSubmittedDate`가 오늘 날짜(`dayId`)로 갱신되어야 하고,
-- 갱신 이전 값은 오늘이 아니어야 합니다(중복 제출 차단).
+`firestore.rules`는 트랙 문서 ID가 **제출자 UID와 같아야** 생성을 허용합니다.
+→ (방, 날짜, 사용자)당 트랙 문서가 **물리적으로 최대 1개만** 존재하므로 하루 1곡이 규칙 우회 없이 강제됩니다.
+→ 재제출은 기존 문서 `update`가 되어 거부됩니다. (별도 배치 쓰기 불필요, 클라이언트 단순)
 
-따라서 곡 등록은 **트랙 문서 생성 + 멤버 문서 갱신을 하나의 배치로** 실행해야 규칙을 통과합니다.
-
-또한 트랙 생성은 **해당 날짜(`dayId`) 문서가 서버에 존재하고 `closed != true`** 일 때만 허용됩니다.
+또한 트랙 생성은 **해당 날짜(`dayId`) 문서가 서버에 존재하고 `closed == false`** 일 때만 허용됩니다.
 → 날짜/테마 문서는 Cloud Functions가 매일 자정에 생성하므로, 그 전에는 제출이 거부됩니다. (자정 마감 정책과 연동)
 
 ### Swift 예시 (Firestore)
 ```swift
 let db = Firestore.firestore()
-let batch = db.batch()
-
 let dayId = "2026-07-13" // 오늘 날짜 (Asia/Seoul 기준)
+
+// 문서 ID를 본인 UID로 고정 → 하루 1곡 강제
 let trackRef = db.collection("rooms").document(roomId)
     .collection("days").document(dayId)
-    .collection("tracks").document()
+    .collection("tracks").document(uid)
 
-batch.setData([
+try await trackRef.setData([
     "videoId": videoId,
     "title": title,
     "channelTitle": channelTitle,
@@ -51,16 +49,10 @@ batch.setData([
     "submittedByNickname": nickname,
     "comment": comment,          // 30자 이내
     "createdAt": FieldValue.serverTimestamp()
-], forDocument: trackRef)
-
-let memberRef = db.collection("rooms").document(roomId)
-    .collection("members").document(uid)
-batch.updateData(["lastSubmittedDate": dayId], forDocument: memberRef)
-
-try await batch.commit()
+])
 ```
 
-> 트랙만 단독으로 생성하면 규칙에서 거부됩니다. 반드시 배치로 처리하세요.
+> "오늘 이미 제출했는지"는 `days/{today}/tracks/{uid}` 문서 존재 여부로 판단하면 됩니다.
 
 ---
 
@@ -72,4 +64,4 @@ try await batch.commit()
 | `rooms/{roomId}` | 자동 ID | 방장(생성/수정), 인증 사용자(읽기) |
 | `rooms/{roomId}/members/{uid}` | 사용자 UID | 본인만 |
 | `rooms/{roomId}/days/{yyyy-MM-dd}` | 날짜 | **서버(Cloud Functions)만** — 테마/마감 |
-| `.../days/{date}/tracks/{trackId}` | 자동 ID | 멤버(하루 1곡, 배치 쓰기) |
+| `.../days/{date}/tracks/{uid}` | = 제출자 UID | 멤버(하루 1곡, 단일 쓰기) |
