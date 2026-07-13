@@ -81,3 +81,23 @@ npm-debug.log*
 
 # 임시 스크래치
 /scratch
+
+# ──────────────────────────────────────────────
+# React Native / Expo
+# ──────────────────────────────────────────────
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+# 네이티브 프로젝트는 prebuild로 생성 (CNG)
+/ios
+/android
+
+# 로컬 환경변수 (.env.example만 커밋)
+.env
+.env.local
+
+# Cloud Functions 빌드 산출물
+functions/lib/
+functions/node_modules/
+functions/.secret.local
