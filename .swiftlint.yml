@@ -1,0 +1,39 @@
+# SwiftLint 설정 — MUZIK IS MY LIFE
+# 규칙 문서: https://realm.github.io/SwiftLint/rule-directory.html
+
+disabled_rules:
+  - trailing_whitespace   # 편집기 자동정리에 맡김
+
+opt_in_rules:
+  - empty_count
+  - force_unwrapping      # 강제 언래핑(!) 지양 — 크래시 방지
+  - closure_spacing
+  - first_where
+  - unused_import
+
+excluded:
+  - Pods
+  - DerivedData
+  - .build
+  - fastlane
+  - "**/*.generated.swift"
+
+line_length:
+  warning: 120
+  error: 160
+
+type_body_length:
+  warning: 300
+  error: 400
+
+file_length:
+  warning: 500
+  error: 800
+
+identifier_name:
+  min_length: 2          # id, ok 등 짧은 이름 허용
+  excluded:
+    - id
+    - to
+    - x
+    - y

@@ -1,0 +1,6 @@
+# 스테이징된 Swift 파일에 SwiftLint 실행 (설치돼 있을 때만)
+if command -v swiftlint >/dev/null 2>&1; then
+  swiftlint lint --quiet
+else
+  echo "⚠️  swiftlint 미설치 — 린트 건너뜀 (brew install swiftlint 권장)"
+fi

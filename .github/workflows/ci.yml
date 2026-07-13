@@ -1,0 +1,64 @@
+name: iOS CI Pipeline
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────
+  # 1) SwiftLint — 지금 바로 동작 (프로젝트 없어도 통과)
+  # ──────────────────────────────────────────────
+  lint:
+    name: SwiftLint 검사
+    runs-on: macos-14
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: SwiftLint 설치
+        run: brew install swiftlint
+
+      - name: 린트 실행
+        run: swiftlint lint --reporter github-actions-logging
+
+  # ──────────────────────────────────────────────
+  # 2) Xcode 빌드 & 테스트
+  #    ⚠️ Xcode 프로젝트 생성 후 아래 env 값을 채우고
+  #       `if: false`를 지워 활성화하세요.
+  # ──────────────────────────────────────────────
+  build-test:
+    name: Xcode 빌드 & 테스트
+    runs-on: macos-14
+    if: false # TODO: Xcode 프로젝트 생성 후 이 줄을 삭제해 활성화
+    env:
+      SCHEME: "Muzik"          # TODO: 실제 스킴 이름으로 교체
+      PROJECT: "Muzik.xcodeproj" # 또는 WORKSPACE: "Muzik.xcworkspace"
+      DESTINATION: "platform=iOS Simulator,name=iPhone 15,OS=latest"
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Xcode 버전 선택
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: 빌드 & 테스트
+        run: |
+          xcodebuild test \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination "$DESTINATION" \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty && exit ${PIPESTATUS[0]}

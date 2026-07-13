@@ -1,0 +1,221 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+# ──────────────────────────────────────────────────
+# CodeRabbit 설정 — MUZIK IS MY LIFE (iOS / Swift / Firebase)
+# ──────────────────────────────────────────────────
+
+language: "ko-KR"
+tone_instructions: "한국어만 사용. 타협 없는 시니어 iOS 리뷰어. 인사말 없이 핵심 직답. 최소 정밀 수정만. 방어적 코딩·크래시 예방 강제. Why+How+코드스니펫 필수."
+
+early_access: true
+
+# ──────────────────────────────────────────────────
+# 리뷰 설정
+# ──────────────────────────────────────────────────
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  changed_files_summary: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  poem: false
+  estimate_code_review_effort: true
+
+  # ── 라벨링 ──
+  suggested_labels: true
+  auto_apply_labels: false
+  labeling_instructions:
+    - label: "bug"
+      instructions: "버그 수정 PR에 적용"
+    - label: "enhancement"
+      instructions: "새로운 기능 추가 PR에 적용"
+    - label: "refactor"
+      instructions: "기능 변경 없이 코드 구조 개선 PR에 적용"
+    - label: "test"
+      instructions: "테스트 코드만 추가/수정한 PR에 적용"
+
+  # ── 자동 리뷰 ──
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 8
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+      - "DRAFT"
+    drafts: false
+    base_branches:
+      - "main"
+      - "dev"
+
+  # ── 파일 필터 (리뷰 제외) ──
+  path_filters:
+    - "!**/*.md"
+    - "!**/*.json"
+    - "!**/*.plist"
+    - "!**/*.xcconfig"
+    - "!**/*.pbxproj"
+    - "!**/*.xcassets/**"
+    - "!**/*.storyboard"
+    - "!**/*.svg"
+    - "!**/*.ico"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!.husky/**"
+    - "!Package.resolved"
+
+  # ── 경로별 리뷰 지침 ──
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        모든 리뷰 출력(워크스루, 요약, 코멘트, 체크리스트)을 한국어로만 작성하세요. 영어 금지.
+        코드 스니펫 내 변수명/함수명은 원본 유지, 설명은 반드시 한국어.
+        전면 재작성 금지 — 핵심 라인만 정밀 타격하여 최소 수정 피드백.
+        개선 제안 시 반드시 Why(기술적 근거) + How(코드 스니펫) 포함.
+
+    - path: "**/*.swift"
+      instructions: |
+        Swift 코드입니다.
+        강제 언래핑(!), 강제 캐스팅(as!), fatalError 남용을 크래시 위험으로 엄격히 지적하세요.
+        옵셔널은 guard let / if let / nil 병합으로 안전하게 처리했는지 확인하세요.
+        메모리 누수(강한 순환 참조) — 클로저의 [weak self] 캡처 누락을 지적하세요.
+        async/await, Task 사용 시 메인 스레드 UI 갱신(@MainActor) 보장 여부를 확인하세요.
+
+    - path: "**/Views/**"
+      instructions: |
+        SwiftUI 뷰 계층입니다.
+        뷰가 단일 책임을 지키는지, 비즈니스 로직이 뷰에 섞이지 않았는지 확인하세요.
+        상태 관리(@State/@StateObject/@ObservedObject/@EnvironmentObject)의 소유권이 올바른지 검증하세요.
+        불필요한 body 재계산·리렌더를 유발하는 패턴을 지적하세요.
+        접근성(accessibilityLabel 등)과 다크모드 대응을 확인하세요.
+
+    - path: "**/ViewModels/**"
+      instructions: |
+        ViewModel(프레젠테이션 로직) 계층입니다.
+        UIKit/SwiftUI 뷰에 대한 의존이 새어들어오지 않았는지 확인하세요.
+        @MainActor로 UI 상태 갱신이 메인 스레드에서 이뤄지는지 확인하세요.
+        에러 상태·로딩 상태가 명시적으로 표현되는지 검증하세요.
+
+    - path: "**/Services/**"
+      instructions: |
+        Firebase/네트워크 등 외부 연동 계층입니다.
+        Firestore 리스너 해제(removeListener) 누락으로 인한 누수를 지적하세요.
+        API 키·시크릿이 하드코딩되지 않았는지 확인하세요 (YouTube 키는 서버에만).
+        에지 케이스(네트워크 실패, 빈 응답, 권한 거부)와 예외 처리를 엄격히 검토하세요.
+        보안(OWASP), Security Rules 우회 가능성에 주의하세요.
+
+    - path: "**/Models/**"
+      instructions: |
+        데이터 모델 계층입니다.
+        Codable/Firestore 매핑이 스키마(기능명세서)와 일치하는지 확인하세요.
+        옵셔널/기본값 처리로 디코딩 실패에 견고한지 검증하세요.
+
+    - path: "**/*Tests/**"
+      instructions: |
+        테스트 파일입니다.
+        AAA 패턴(Arrange-Act-Assert)을 따르는지 확인하세요.
+        테스트 이름이 행동(behavior)을 명확히 기술하는지 확인하세요.
+        경계값·에러 케이스·빈 입력 커버리지를 평가하세요.
+        구현 세부가 아닌 공개 인터페이스를 검증하는지, 과도한 모킹이 없는지 확인하세요.
+
+    - path: "functions/**"
+      instructions: |
+        Firebase Cloud Functions(서버) 계층입니다.
+        YouTube Data API 키가 환경변수/시크릿으로 안전하게 관리되는지 확인하세요.
+        입력 검증, 쿼터 초과·외부 API 실패에 대한 방어 로직을 엄격히 검토하세요.
+        불필요한 콜드스타트 비용, 미들웨어 남용을 지적하세요.
+
+  # ── 정적 분석 도구 ──
+  tools:
+    swiftlint:
+      enabled: true
+    eslint:
+      enabled: true          # Cloud Functions(functions/) 대상
+    github-checks:
+      enabled: true
+      timeout_ms: 120000
+    actionlint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    semgrep:
+      enabled: true
+    languagetool:
+      enabled: false
+
+  # ── Finishing Touches ──
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
+  # ── Pre-merge 체크 ──
+  pre_merge_checks:
+    title:
+      mode: "warning"
+      requirements: "PR 제목은 'feat:', 'fix:', 'refactor:', 'docs:', 'chore:', 'test:', 'design:' 중 하나로 시작해야 합니다."
+    description:
+      mode: "warning"
+    issue_assessment:
+      mode: "warning"
+
+  # ── Slop Detection ──
+  slop_detection:
+    enabled: true
+    label: "ai-slop"
+
+# ──────────────────────────────────────────────────
+# 지식 기반 (프로젝트 컨텍스트 강화)
+# ──────────────────────────────────────────────────
+knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  learnings:
+    scope: "local"
+  issues:
+    scope: "local"
+  pull_requests:
+    scope: "local"
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "docs/기능명세서.md"
+      - "docs/요구명세서.md"
+      - "convention.md"
+
+# ──────────────────────────────────────────────────
+# 코드 생성
+# ──────────────────────────────────────────────────
+code_generation:
+  docstrings:
+    language: "ko-KR"
+  unit_tests:
+    path_instructions:
+      - path: "**/*.swift"
+        instructions: |
+          XCTest를 사용하세요. 테스트 메서드/설명은 한국어 의도가 드러나게 작성하세요.
+          AAA 패턴(Arrange-Act-Assert)을 따르세요.
+          경계값, 에러 케이스, 빈 입력을 반드시 포함하세요.
+          외부 의존성(Firebase 등)은 프로토콜 추상화로 격리해 테스트하세요.
+
+# ──────────────────────────────────────────────────
+# 이슈 풍부화
+# ──────────────────────────────────────────────────
+issue_enrichment:
+  auto_enrich:
+    enabled: true
+  planning:
+    enabled: true
+
+# ──────────────────────────────────────────────────
+# 채팅
+# ──────────────────────────────────────────────────
+chat:
+  auto_reply: true
