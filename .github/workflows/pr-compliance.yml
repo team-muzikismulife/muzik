@@ -40,9 +40,10 @@ jobs:
             "내 코드가 팀의 기존 코드를 망가뜨리지 않았는지 확인했나요?"
           )
 
+          # 각 필수 항목이 '체크된 상태([x])'로 존재하는지 검증 (텍스트만 있고 미체크면 실패)
           for item in "${required_items[@]}"; do
-            if ! echo "$PR_BODY" | grep -Fq "$item"; then
-              echo "❌ PR 체크리스트 필수 항목이 누락되었습니다: $item"
+            if ! echo "$PR_BODY" | grep -Fq "[x] $item" && ! echo "$PR_BODY" | grep -Fq "[X] $item"; then
+              echo "❌ PR 체크리스트 필수 항목이 누락되었거나 체크되지 않았습니다: $item"
               exit 1
             fi
           done
@@ -50,6 +51,13 @@ jobs:
           # 본문이 너무 짧은지 검사 (최소한의 설명 요구)
           if [ ${#PR_BODY} -lt 30 ]; then
              echo "❌ PR 설명이 너무 짧습니다. 템플릿에 맞게 어떤 작업을 했는지 명확하게 설명해주세요."
+             exit 1
+          fi
+
+          # 연결된 이슈 참조가 있는지 검사 (#숫자 형태)
+          # 기능 PR은 'Close #N', 릴리스 승격 PR은 '관련 이슈 #N' 모두 허용
+          if ! echo "$PR_BODY" | grep -qE "#[0-9]+"; then
+             echo "❌ 연결된 이슈 참조(#이슈번호)가 없습니다. 'Close #12' 처럼 관련 이슈를 연결해주세요."
              exit 1
           fi
 

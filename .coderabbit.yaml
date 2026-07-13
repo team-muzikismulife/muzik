@@ -159,7 +159,7 @@ reviews:
   pre_merge_checks:
     title:
       mode: "warning"
-      requirements: "PR 제목은 'feat:', 'fix:', 'refactor:', 'docs:', 'chore:', 'test:', 'design:' 중 하나로 시작해야 합니다."
+      requirements: "PR 제목은 convention.md에 정의된 타입(feat, fix, design, refactor, docs, chore, test) 중 하나로 시작해야 합니다. 선택적으로 scope를 붙일 수 있습니다. 예: 'feat: ...', 'fix(재생): ...'"
     description:
       mode: "warning"
     issue_assessment:

@@ -14,7 +14,8 @@ on:
       - dev
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
+  # PR 번호(또는 브랜치 ref) 기준 — 같은 PR에 새 커밋이 오면 이전 실행을 취소
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,7 +27,7 @@ jobs:
     runs-on: macos-14
     steps:
       - name: 저장소 체크아웃
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 고정 SHA (공급망 보안)
 
       - name: SwiftLint 설치
         run: brew install swiftlint
@@ -38,7 +39,7 @@ jobs:
             echo "✅ 린트할 Swift 파일이 아직 없습니다 — 통과."
             exit 0
           fi
-          swiftlint lint --reporter github-actions-logging
+          swiftlint lint --strict --reporter github-actions-logging
 
   # ──────────────────────────────────────────────
   # 2) Xcode 빌드 & 테스트
@@ -55,7 +56,7 @@ jobs:
       DESTINATION: "platform=iOS Simulator,name=iPhone 15,OS=latest"
     steps:
       - name: 저장소 체크아웃
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 고정 SHA (공급망 보안)
 
       - name: Xcode 버전 선택
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
