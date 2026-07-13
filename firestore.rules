@@ -72,6 +72,11 @@ service cloud.firestore {
             && isMember(roomId)
             && trackId == request.auth.uid
             && request.resource.data.submittedByUid == request.auth.uid
+            // 허용된 필드만 저장 가능(문서 모양 고정)
+            && request.resource.data.keys().hasOnly([
+              'videoId', 'title', 'channelTitle', 'thumbnailUrl', 'durationSec',
+              'submittedByUid', 'submittedByNickname', 'comment', 'createdAt'
+            ])
             // 필수 필드 및 코멘트 30자 제한
             && request.resource.data.videoId is string
             && request.resource.data.videoId.size() > 0
