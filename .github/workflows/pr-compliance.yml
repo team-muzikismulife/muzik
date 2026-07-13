@@ -40,9 +40,9 @@ jobs:
             "내 코드가 팀의 기존 코드를 망가뜨리지 않았는지 확인했나요?"
           )
 
-          # 각 필수 항목이 '체크된 상태([x])'로 존재하는지 검증 (텍스트만 있고 미체크면 실패)
+          # 각 필수 항목이 '체크된 체크리스트 라인(- [x])'으로 존재하는지 검증
           for item in "${required_items[@]}"; do
-            if ! echo "$PR_BODY" | grep -Fq "[x] $item" && ! echo "$PR_BODY" | grep -Fq "[X] $item"; then
+            if ! echo "$PR_BODY" | grep -Fq -- "- [x] $item" && ! echo "$PR_BODY" | grep -Fq -- "- [X] $item"; then
               echo "❌ PR 체크리스트 필수 항목이 누락되었거나 체크되지 않았습니다: $item"
               exit 1
             fi
@@ -54,10 +54,11 @@ jobs:
              exit 1
           fi
 
-          # 연결된 이슈 참조가 있는지 검사 (#숫자 형태)
-          # 기능 PR은 'Close #N', 릴리스 승격 PR은 '관련 이슈 #N' 모두 허용
-          if ! echo "$PR_BODY" | grep -qE "#[0-9]+"; then
-             echo "❌ 연결된 이슈 참조(#이슈번호)가 없습니다. 'Close #12' 처럼 관련 이슈를 연결해주세요."
+          # 연결된 이슈 참조가 있는지 검사 — 단순 '#숫자'가 아니라 연결 의미가 있는 형태만 인정
+          # 기능 PR: GitHub 종료 키워드(Close/Fixes/Resolves 등) + #N
+          # 릴리스 승격 PR: '관련 이슈 #N'
+          if ! echo "$PR_BODY" | grep -qiE "(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+|관련[[:space:]]*이슈[[:space:]]*#[0-9]+"; then
+             echo "❌ 연결된 이슈 참조가 없습니다. 'Close #12'(기능) 또는 '관련 이슈 #12'(승격) 형태로 연결해주세요."
              exit 1
           fi
 
