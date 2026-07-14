@@ -33,14 +33,14 @@ erDiagram
         string inviteCode "표시/공유용(역참조는 INVITE)"
         string createdBy FK "개설자 uid"
         int    memberCount "가입 시 트랜잭션 증가(상한 30)"
-        timestamp createdAt
+        number createdAt
     }
 
     MEMBER {
         string uid PK "= 익명 Auth UID"
         string nickname "방별 닉네임(중복 허용)"
         string photoColor "아바타 색(시각 구분)"
-        timestamp joinedAt
+        number joinedAt
     }
 
     TRACK {
@@ -53,10 +53,10 @@ erDiagram
         string nickname "제출 시점 스냅샷"
         string dateKey "yyyy-MM-dd (서버 확정, 4시 컷)"
         int    order "서버 epoch = 재생 정렬키"
-        timestamp createdAt
+        number createdAt
         bool   embeddable
         int    durationSec
-        timestamp metaRefreshedAt "30일 lazy refresh 기준"
+        number metaRefreshedAt "30일 lazy refresh 기준"
         bool   unavailable "삭제/비공개 영상 표시(옵션)"
     }
 
@@ -65,7 +65,7 @@ erDiagram
         int    trackCount "registerTrack이 upsert(+1)"
         string coverVideoId "첫 곡(대표 썸네일 파생)"
         string themeText "그날 첫 곡 순간의 테마 스냅샷"
-        timestamp updatedAt
+        number updatedAt
     }
 ```
 
