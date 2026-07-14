@@ -10,7 +10,25 @@ struct OnboardingView: View {
     var onCreateTeam: () -> Void = {}
     var onTapProfile: () -> Void = {}
 
+    /// 팀 카드를 누르면 그 팀이 쌓이고, 플레이리스트 화면이 밀려 들어온다.
+    @State private var path: [OnboardingTeam] = []
+
     var body: some View {
+        NavigationStack(path: $path) {
+            content
+                .navigationDestination(for: OnboardingTeam.self) { team in
+                    TeamPlaylistView(
+                        teamName: team.name,
+                        tracks: PlaylistTrack.samples,
+                        pendingMember: PlaylistMember(id: "me", name: userName),
+                        recommendation: "무더운 여름에 듣기 좋은 시원한 곡 추천하기"
+                    )
+                }
+                .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             header
 
@@ -58,7 +76,10 @@ struct OnboardingView: View {
 
             VStack(spacing: MuzikSpacing.md) {
                 ForEach(teams) { team in
-                    TeamCardButton(team: team) { onSelectTeam(team) }
+                    TeamCardButton(team: team) {
+                        path.append(team)
+                        onSelectTeam(team)
+                    }
                 }
             }
         }

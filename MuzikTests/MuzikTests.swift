@@ -1,0 +1,19 @@
+//
+//  MuzikTests.swift
+//  MuzikTests
+//
+//  Created by 정규호 on 7/13/26.
+//
+
+import Testing
+@testable import Muzik
+
+struct MuzikTests {
+
+    @Test func example() async throws {
+        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+        // Swift Testing Documentation
+        // https://developer.apple.com/documentation/testing
+    }
+
+}

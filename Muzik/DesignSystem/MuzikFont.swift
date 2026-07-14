@@ -38,8 +38,14 @@ enum MuzikFont {
     static let buttonLabel = Style(weight: .medium, size: 16, tracking: -0.064)
     /// "새 기록"
     static let captionEmphasis = Style(weight: .medium, size: 14, tracking: -0.056)
-    /// "3명 참여중", 가운뎃점
+    /// "3명 참여중", 가운뎃점, 아티스트명, 트랙 코멘트
     static let caption = Style(weight: .regular, size: 14, tracking: -0.056)
+    /// 트랙 제목 — 화면 제목과 크기는 같지만 쓰임이 달라 따로 둔다.
+    static let trackTitle = Style(weight: .medium, size: 20, tracking: -0.08)
+    /// 트랙 카드에 곡을 올린 멤버 이름
+    static let memberName = Style(weight: .medium, size: 16, tracking: -0.064)
+    /// 날짜 칩 — sectionTitle과 함께 시안에서 자간이 양수인 둘 중 하나다.
+    static let dateChip = Style(weight: .medium, size: 14, tracking: 0.056)
 }
 
 extension View {
