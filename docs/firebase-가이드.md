@@ -1,3 +1,7 @@
+> ⚠️ **SUPERSEDED (구버전).** 이 가이드는 클라이언트가 Firestore에 직접 쓰던 모델(트랙ID=UID, 자정 마감) 기준이다.
+> v2는 **쓰기 전부 Cloud Functions 경유·읽기 전용 Rules, 트랙ID=`{uid}_{dateKey}`, 새벽 4시 마감**으로 변경됨.
+> 정본: [백엔드설계.md](백엔드설계.md)(§4 Rules 초안 포함) · [ERD.md](ERD.md).
+
 # Firebase 가이드 (Firestore 규칙 · 배포 · 테스트)
 
 ## 1. 사전 준비
@@ -61,7 +65,7 @@ try await trackRef.setData([
 
 | 컬렉션 | 키 | 쓰기 주체 |
 |---|---|---|
-| `rooms/{roomId}` | 자동 ID | 방장(생성/수정), 인증 사용자(읽기) |
-| `rooms/{roomId}/members/{uid}` | 사용자 UID | 본인만 |
+| `rooms/{roomId}` | 자동 ID (= 초대코드, 링크 `/r/{roomId}`) | 방장(생성/수정), 인증 사용자(읽기) |
+| `rooms/{roomId}/members/{uid}` | 사용자 UID | 본인만 (`nickname`/`joinedAt`만) |
 | `rooms/{roomId}/days/{yyyy-MM-dd}` | 날짜 | **서버(Cloud Functions)만** — 테마/마감 |
 | `.../days/{date}/tracks/{uid}` | = 제출자 UID | 멤버(하루 1곡, 단일 쓰기) |
