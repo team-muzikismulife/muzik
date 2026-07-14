@@ -1,113 +1,54 @@
 rules_version = '2';
 
 // ──────────────────────────────────────────────────
-// ⚠️ SUPERSEDED (구버전) — 클라이언트 직접쓰기 모델.
-// v2는 "쓰기 전부 Cloud Functions(Admin) 경유 · 클라 읽기 전용"으로 전환됨.
-//   → 트랙ID = {uid}_{dateKey}, invites/{code} 역참조, 새벽 4시 마감.
-// 정본 Rules 초안: docs/백엔드설계.md §4 (읽기 전용 + 전 컬렉션 write deny).
-// 이 파일은 rules 재작성 전까지 참고용으로만 보관한다.
-// ──────────────────────────────────────────────────
-// MUZIK IS MY LIFE — Firestore Security Rules
-// 데이터 모델: docs/기능명세서.md 참고
-// 핵심 정책: 익명 인증 필수 · 하루 1곡 · 소유권/멤버십 검증
+// MUZIK IS MY LIFE — Firestore Security Rules (v2)
+// 정본: docs/백엔드설계.md §4
+//
+// 대원칙: **쓰기는 전부 Cloud Functions(Admin SDK) 경유. 클라이언트는 읽기 전용.**
+// Admin SDK는 룰을 우회하므로, 여기서는 write를 한 줄도 열지 않는다.
+// 하루 1곡·서버 시각 dateKey·초대 코드 유일성 같은 규칙을 클라이언트가 우회할 수 없게
+// 만드는 가장 단순한 방법이다. 룰은 "누가 무엇을 읽을 수 있는가"에만 집중한다.
 // ──────────────────────────────────────────────────
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── 공통 헬퍼 ──
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // 문서 read당 exists() 1회 → 비용이 있다. 리스트 쿼리는 컬렉션 단위 1회 평가.
     function isMember(roomId) {
-      return exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
     }
 
-    function dayDoc(roomId, dayId) {
-      return get(/databases/$(database)/documents/rooms/$(roomId)/days/$(dayId)).data;
+    // 킬스위치 등 원격 설정 (handoffMode) — 로그인 전에도 읽어야 한다
+    match /config/app {
+      allow read: if true;
     }
 
-    // ── 방(Room) ──
+    // 방과 그 하위 문서는 **그 방의 멤버만** 읽는다
     match /rooms/{roomId} {
-      // 초대 링크로 roomId를 알면 개별 조회(get)는 허용하되,
-      // 컬렉션 나열(list)은 막아 방 열거(enumeration)를 차단
-      allow get: if isSignedIn();
-      allow list: if false;
+      allow read: if isMember(roomId);
 
-      // 초대코드는 별도 필드가 아니라 roomId(문서 ID) 자체를 사용한다.
-      // 문서 모양을 고정해 중복 inviteCode 등 임의 필드 위조를 차단.
-      allow create: if isSignedIn()
-        && request.resource.data.keys().hasOnly(['name', 'ownerUid', 'timezone', 'createdAt'])
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 40
-        && request.resource.data.timezone is string
-        && request.resource.data.createdAt == request.time;
-
-      // 방 정보 수정/삭제는 방장만
-      allow update, delete: if isSignedIn()
-        && resource.data.ownerUid == request.auth.uid;
-
-      // ── 멤버(Member) ──
-      match /members/{uid} {
-        // 멤버 목록/닉네임은 같은 방 멤버만 읽을 수 있음
-        allow read: if isSignedIn() && isMember(roomId);
-
-        // 본인 멤버 문서만 생성/수정. 필드는 nickname/joinedAt 로 제한(임의 필드 위조 차단).
-        // 상위 방이 실제로 존재할 때만 허용 → 임의 roomId로 멤버 위조 후 isMember 우회 차단.
-        allow create, update: if isSignedIn()
-          && uid == request.auth.uid
-          && exists(/databases/$(database)/documents/rooms/$(roomId))
-          && request.resource.data.keys().hasOnly(['nickname', 'joinedAt'])
-          && request.resource.data.nickname is string
-          && request.resource.data.nickname.size() > 0
-          && request.resource.data.nickname.size() <= 20;
-
-        allow delete: if false;
-      }
-
-      // ── 일자별 문서(Day) ──
-      // 날짜=문서키. 테마 배정·자정 마감은 Cloud Functions(Admin)만 처리하므로 클라 쓰기 금지.
-      match /days/{dayId} {
-        allow read: if isSignedIn() && isMember(roomId);
-        allow write: if false;
-
-        // ── 트랙(Track) ──
-        // 하루 1곡: 트랙 문서 ID를 제출자 UID로 고정 → (방, 날짜, 사용자)당 최대 1개만 존재 가능.
-        // 재제출은 기존 문서 update가 되어 아래에서 거부됨 → 규칙 우회 불가.
-        match /tracks/{trackId} {
-          allow read: if isSignedIn() && isMember(roomId);
-
-          allow create: if isSignedIn()
-            && isMember(roomId)
-            && trackId == request.auth.uid
-            && request.resource.data.submittedByUid == request.auth.uid
-            // 허용된 필드만 저장 가능(문서 모양 고정)
-            && request.resource.data.keys().hasOnly([
-              'videoId', 'title', 'channelTitle', 'thumbnailUrl', 'durationSec',
-              'submittedByUid', 'submittedByNickname', 'comment', 'createdAt'
-            ])
-            // 필수 필드 및 코멘트 30자 제한
-            && request.resource.data.videoId is string
-            && request.resource.data.videoId.size() > 0
-            && request.resource.data.title is string
-            && request.resource.data.comment is string
-            && request.resource.data.comment.size() <= 30
-            // 서버가 만든 날짜 문서가 존재하고 명시적으로 열려(closed==false) 있어야 함.
-            // 필드 누락/null 은 안전하게 '마감'으로 간주(기본값 true).
-            && exists(/databases/$(database)/documents/rooms/$(roomId)/days/$(dayId))
-            && dayDoc(roomId, dayId).get('closed', true) == false;
-
-          // 트랙 수정/삭제는 클라 금지 (모더레이션/마감은 서버에서 처리)
-          allow update, delete: if false;
-        }
-      }
+      match /members/{uid}    { allow read: if isMember(roomId); }
+      match /tracks/{trackId} { allow read: if isMember(roomId); }
+      match /days/{dateKey}   { allow read: if isMember(roomId); }
     }
 
-    // 그 외 경로는 모두 차단
-    match /{document=**} {
-      allow read, write: if false;
+    // 초대 코드 → 방 역참조. 코드를 아는 사람은 roomId를 알 수 있어야 입장이 가능하다
+    match /invites/{code} {
+      allow read: if isSignedIn();
+    }
+
+    // ── 참여 중인 팀 목록 (온보딩) ──
+    // 내 멤버 문서는 roomId를 모르는 상태에서도 읽을 수 있어야 한다.
+    // collectionGroup('members').where('uid','==',myUid) 조회가 여기에 걸린다.
+    //
+    // 주의: 룰이 resource.data.uid를 보므로 **클라이언트 쿼리도 같은 제약(where uid == myUid)을
+    // 걸어야** 통과한다. 어긋나면 permission-denied가 나는데 원인이 룰인지 쿼리인지 헷갈린다.
+    match /{path=**}/members/{memberId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
   }
 }

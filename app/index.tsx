@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -8,7 +8,7 @@ import {
   View,
   StyleSheet,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { colors, radius, size, spacing, typography } from '@/theme/tokens';
 import { Screen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
@@ -17,33 +17,39 @@ import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { TeamCard } from '@/components/TeamCard';
 import { fieldError, INVITE_CODE_LENGTH, InviteCodeSchema, NicknameSchema } from '@/schemas';
+import { useSessionStore } from '@/store/session';
+import { useTeamsStore } from '@/store/teams';
 
 /**
- * 온보딩 / 참여 중인 팀 (Figma 1:2125 "OnBoarding")
- * TODO(M1): 익명 로그인 부트스트랩 + AsyncStorage 로컬 캐시 기반 팀 목록 복원
+ * 온보딩 / 참여 중인 팀 (Figma 107:1126 "OnBoarding")
  *
- * Figma에는 닉네임·초대 코드 입력란이 없으나(별도 모달 상정), 초대 플로우가 깨지므로
+ * Figma에는 닉네임·초대 코드 입력란이 없으나(별도 화면 분리 예정), 초대 플로우가 깨지므로
  * 같은 디자인 언어(보더형 radius 8)로 하단에 유지한다.
  */
-interface MockTeam {
-  id: string;
-  name: string;
-  members: string[];
-  hasNew: boolean;
-}
-
-const MOCK_TEAMS: MockTeam[] = [
-  { id: 'room1', name: '무직은 내 삶', members: ['보규', '승완', '규호'], hasNew: true },
-  { id: 'room2', name: '밴드 공연하자!', members: ['지민', '태현', '수아', '민재', '현우'], hasNew: true },
-  { id: 'room3', name: '안녕하세요미리내입니다잘부탁드립니다', members: ['현우', '서연', '도윤'], hasNew: false },
-];
 
 // Figma: 카드 간 16, 목록과 개설 버튼 사이 32
 const LIST_CONTENT = { gap: spacing.lg, paddingBottom: spacing.lg };
 
 export default function Onboarding() {
   const router = useRouter();
-  const [nickname, setNickname] = useState('보규');
+
+  const uid = useSessionStore((s) => s.uid);
+  const lastNickname = useSessionStore((s) => s.lastNickname);
+  const setLastNickname = useSessionStore((s) => s.setLastNickname);
+
+  const teams = useTeamsStore((s) => s.teams);
+  const teamsStatus = useTeamsStore((s) => s.status);
+  const teamsError = useTeamsStore((s) => s.error);
+  const loadTeams = useTeamsStore((s) => s.load);
+
+  // 포커스 중에만 조회한다 — 방 개설·입장 후 돌아오면 목록이 갱신된다
+  useFocusEffect(
+    useCallback(() => {
+      if (uid) loadTeams(uid);
+    }, [uid, loadTeams]),
+  );
+
+  const [nickname, setNickname] = useState(lastNickname ?? '');
   const [inviteCode, setInviteCode] = useState('');
   const [codeTouched, setCodeTouched] = useState(false);
 
@@ -57,34 +63,47 @@ export default function Onboarding() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* 헤더 — 인사말 + 내 프로필 */}
+        {/* 헤더 — 인사말 + 내 프로필. 아직 어느 팀에도 안 들어갔으면 닉네임이 없다 */}
         <View style={styles.header}>
           <Text style={typography.title} numberOfLines={1}>
-            환영합니다{nickname ? `, ${nickname}님` : ''}
+            환영합니다{lastNickname ? `, ${lastNickname}님` : ''}
           </Text>
-          <Avatar nickname={nickname || '?'} size={size.avatarMd} glow />
+          <Avatar nickname={lastNickname || '?'} size={size.avatarMd} glow />
         </View>
 
         <View style={styles.body}>
           <Text style={typography.bodyMedium}>참여 중인 팀</Text>
 
           <FlatList
-            data={MOCK_TEAMS}
+            data={teamsStatus === 'ready' ? teams : []}
             keyExtractor={(t) => t.id}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={LIST_CONTENT}
             ListEmptyComponent={
-              <StateView
-                status="empty"
-                title="참여 중인 팀이 없어요"
-                message="팀을 만들거나, 받은 초대 코드를 입력해 보세요."
-              />
+              teamsStatus === 'loading' ? (
+                <StateView status="loading" />
+              ) : teamsStatus === 'error' ? (
+                <StateView
+                  status="error"
+                  title="팀 목록을 불러오지 못했어요"
+                  message={teamsError ?? undefined}
+                  actionLabel="다시 시도"
+                  onAction={() => uid && loadTeams(uid)}
+                />
+              ) : (
+                // 신규 사용자가 가장 먼저 보는 화면이다 — 다음 행동(개설)으로 이어줘야 한다
+                <StateView
+                  status="empty"
+                  title="참여 중인 팀이 없어요"
+                  message="팀을 만들거나, 받은 초대 코드를 입력해 보세요."
+                />
+              )
             }
             renderItem={({ item }) => (
               <TeamCard
                 name={item.name}
-                memberNicknames={item.members}
-                hasNew={item.hasNew}
+                memberCount={item.memberCount}
+                members={item.members}
                 onPress={() => router.push(`/room/${item.id}`)}
               />
             )}
@@ -112,6 +131,8 @@ export default function Onboarding() {
               <TextInput
                 value={nickname}
                 onChangeText={setNickname}
+                // 입력 중이 아니라 끝났을 때 기억한다 — 키 입력마다 쓰지 않는다
+                onBlur={() => !nicknameError && setLastNickname(nickname)}
                 placeholder="닉네임"
                 placeholderTextColor={colors.text40}
                 style={styles.input}
