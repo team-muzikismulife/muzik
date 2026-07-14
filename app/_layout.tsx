@@ -95,6 +95,8 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" />
+        {/* 모달은 라우트로 표현한다 — 뒤로가기·상태복원이 공짜로 따라온다 (frontend.md) */}
+        <Stack.Screen name="room/create" options={{ presentation: 'modal' }} />
         <Stack.Screen name="room/[id]/index" />
         <Stack.Screen name="room/[id]/playlist/[dateKey]" />
         <Stack.Screen name="r/[code]" />

@@ -111,10 +111,7 @@ export default function Onboarding() {
             ListFooterComponent={
               <PressableScale
                 style={styles.createBtn}
-                disabled={!!nicknameError}
-                onPress={() => {
-                  // TODO(M1): app/room/create.tsx 로 이동 → createRoom
-                }}
+                onPress={() => router.push('/room/create')}
                 accessibilityRole="button"
                 accessibilityLabel="새로운 팀 개설하기"
               >
