@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2022",
+    "lib": ["es2022"],
+    "moduleResolution": "node",
+    "strict": true,
+    "noImplicitReturns": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "outDir": "lib",
+    // rootDir을 저장소 루트로 잡아야 ../src의 공용 모듈(zod 스키마·아바타 규칙)을 함께 컴파일한다.
+    // 결과: lib/functions/src/*.js + lib/src/*.js → main은 lib/functions/src/index.js
+    "rootDir": ".."
+  },
+  "include": [
+    "src/**/*.ts",
+    "../src/schemas/**/*.ts",
+    "../src/lib/avatar.ts",
+    "../src/theme/tokens.ts",
+    "../src/types/models.ts"
+  ]
+}

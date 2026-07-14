@@ -8,7 +8,7 @@
     "start": "expo start",
     "ios": "expo run:ios",
     "lint": "tsc --noEmit",
-    "emulators": "firebase emulators:start --only auth,firestore",
+    "emulators": "npm --prefix functions run build && firebase emulators:start --only auth,firestore,functions",
     "prepare": "husky"
   },
   "dependencies": {

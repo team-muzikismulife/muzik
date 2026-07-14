@@ -3,6 +3,10 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": {
+    "source": "functions",
+    "predeploy": ["npm --prefix functions run build"]
+  },
   "emulators": {
     "//": "host 0.0.0.0 — 기본값(127.0.0.1)이면 실기기 Expo Go가 LAN으로 접속할 수 없다",
     "auth": { "host": "0.0.0.0", "port": 9099 },
