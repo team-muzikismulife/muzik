@@ -1,6 +1,12 @@
 rules_version = '2';
 
 // ──────────────────────────────────────────────────
+// ⚠️ SUPERSEDED (구버전) — 클라이언트 직접쓰기 모델.
+// v2는 "쓰기 전부 Cloud Functions(Admin) 경유 · 클라 읽기 전용"으로 전환됨.
+//   → 트랙ID = {uid}_{dateKey}, invites/{code} 역참조, 새벽 4시 마감.
+// 정본 Rules 초안: docs/백엔드설계.md §4 (읽기 전용 + 전 컬렉션 write deny).
+// 이 파일은 rules 재작성 전까지 참고용으로만 보관한다.
+// ──────────────────────────────────────────────────
 // MUZIK IS MY LIFE — Firestore Security Rules
 // 데이터 모델: docs/기능명세서.md 참고
 // 핵심 정책: 익명 인증 필수 · 하루 1곡 · 소유권/멤버십 검증
@@ -28,11 +34,16 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if false;
 
+      // 초대코드는 별도 필드가 아니라 roomId(문서 ID) 자체를 사용한다.
+      // 문서 모양을 고정해 중복 inviteCode 등 임의 필드 위조를 차단.
       allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['name', 'ownerUid', 'timezone', 'createdAt'])
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 40;
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.timezone is string
+        && request.resource.data.createdAt == request.time;
 
       // 방 정보 수정/삭제는 방장만
       allow update, delete: if isSignedIn()
