@@ -132,7 +132,36 @@ rooms/{roomId}                                방
 
 ---
 
-## 6. 향후 (MVP 외)
+## 6. 알려진 정합성 이슈 (구현 시 주의)
+
+> v2 ERD 리뷰(2026-07-14)에서 도출. 대부분 **비정규화된 파생/집계 필드**에서 발생 — `thumbnailUrl`을 없애며 경계한 바로 그 부류다. registerTrack·joinRoom·deleteTrack를 트랜잭션으로 짤 때 함께 반영할 것.
+
+### 🔴 구현 전 확정 (카운터/집계 정합성)
+
+| # | 이슈 | 대응 |
+|---|---|---|
+| V1 | **`deleteTrack`가 `coverVideoId`를 유지 안 함** — 대표(첫) 곡을 지우고 다른 곡이 남으면 `coverVideoId`가 사라진 videoId를 계속 가리켜 대표 썸네일이 깨짐 | 삭제 대상 == `coverVideoId`면 남은 최소 `order` 트랙으로 재계산 |
+| V2 | **`days` 집계 원자성** — `tracks` 쓰기와 `trackCount` 증감이 한 트랜잭션이 아니면 드리프트 → "trackCount 0이면 day 삭제" 로직이 곡 남은 날을 증발시키거나 빈 날짜 탭을 남김 | track 쓰기 + day 집계를 **하나의 Firestore 트랜잭션**으로 |
+| V3 | **`joinRoom`의 `memberCount` 멱등성 결여** — 같은 uid 재입장 시 `members.set`은 멱등이나 `memberCount++`는 매번 증가 → 실제 인원보다 먼저 30 캡에 걸림 | 트랜잭션 안에서 **member 문서가 없던 경우에만** 증가. `members`가 진실, `memberCount`는 캐시 |
+
+### 🟠 자기모순 / 정책
+
+| # | 이슈 | 대응 |
+|---|---|---|
+| V4 | **`photoColor` 저장 + 클라 파생 중복** — 닉네임 해시로 결정론적 파생 가능한데 저장까지 함. 재입장으로 닉네임 바뀌면 어긋남 | 저장 대신 닉네임에서 파생(권장) 또는 클라 파생 제거하고 서버 값만 신뢰 |
+| V5 | **`refreshMeta` 열람-lazy → 안 본 날은 30일 갱신 정책 미준수** ([유튜브연동설계 §6](유튜브연동설계.md) 준수 주장과 상충) | 스케줄드 스윕(Cloud Scheduler) 추가 or "미준수 감수" 명시 |
+| V6 | **초대코드 2중 저장**(`rooms.inviteCode` + `invites` 키) + 회전/만료 경로 부재 | 회전 불필요면 명시, 필요하면 트랜잭션 경로 설계 |
+
+### 🟡 시맨틱 / 경미
+
+- **V7** `Track.artist`에 채널명 저장 — 채널 ≠ 아티스트. `channelTitle`로 명명하거나 부정확성 수용.
+- **V8** `order = 서버 epoch(ms)` — 동일 ms 동값(희박), delete 후 재등록 시 순서 맨 뒤로 이동.
+- **V9** 핸드오프 50곡 ↔ 멤버 30캡 암묵 결합 — 캡을 50 초과로 올리면 `watch_videos`가 깨짐. 불변식을 상수로 못박기.
+- **V10** 스키마 3중 존재(백엔드설계 §2 · `models.ts` · ERD.md) — `models.ts`를 유일 정본으로, 문서는 포인터만.
+
+---
+
+## 7. 향후 (MVP 외)
 
 - **신고/모더레이션(FR-18):** `reports/{trackId}_{reporterUid}`(dedupe) + 임계치 초과 시 Function이 `tracks.unavailable=true` 세팅. 아직 스키마 미반영.
 - **리액션:** `tracks/{id}/reactions` 서브컬렉션 확장 여지만 예약([구현계획서 §6](구현계획서.md)).
