@@ -17,10 +17,14 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
  * (별도 컴포넌트로 감싸는 방식이 아님)
  */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
+  // 상세 메시지는 로깅으로만 — 사용자에겐 일반화된 문구만 노출한다 (내부 정보 노출 방지)
+  useEffect(() => {
+    console.error('RootLayout ErrorBoundary:', error);
+  }, [error]);
   return (
     <View style={styles.fallback}>
       <Text style={typography.bodyMedium}>문제가 발생했어요</Text>
-      <Text style={[typography.caption, styles.center]}>{error.message}</Text>
+      <Text style={[typography.caption, styles.center]}>잠시 후 다시 시도해 주세요.</Text>
       <PressableScale
         style={styles.retry}
         onPress={retry}

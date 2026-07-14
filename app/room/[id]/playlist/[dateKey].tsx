@@ -58,6 +58,10 @@ export default function PlaylistDetail() {
   const playOnYoutube = async () => {
     // 삭제된 영상은 임시 재생목록을 통째로 깨뜨릴 수 있으므로 제외한다
     const ids = tracks.filter((t) => !t.unavailable).map((t) => t.videoId);
+    if (ids.length === 0) {
+      toast('재생할 수 있는 곡이 없어요');
+      return;
+    }
     try {
       await Linking.openURL(buildWatchVideosUrl(ids));
     } catch {
@@ -129,6 +133,8 @@ export default function PlaylistDetail() {
                 </View>
               </View>
               <LinearGradient colors={colors.heroFade} style={styles.heroGradient}>
+                {/* TODO(M4): 과거(dateKey !== todayKey())는 days.themeText 스냅샷을 써야 한다.
+                    themeFor는 오늘 테마 계산용 — THEMES 풀이 바뀌면 과거 테마가 소급 변조된다 (구현계획서 §2) */}
                 <Text style={typography.heroTitle}>{themeFor(dateKey)}</Text>
                 <Text style={typography.caption}>{formatDate(dateKey)}의 플레이리스트</Text>
               </LinearGradient>
@@ -163,7 +169,14 @@ export default function PlaylistDetail() {
               </PressableScale>
               <PressableScale
                 style={styles.previewBtn}
-                onPress={() => setPlaying(true)}
+                onPress={() => {
+                  if (playable.length === 0) {
+                    toast('미리듣기할 수 있는 곡이 없어요');
+                    return;
+                  }
+                  setQueueIndex(0);
+                  setPlaying(true);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="앱에서 미리듣기"
               >
@@ -201,17 +214,25 @@ export default function PlaylistDetail() {
           </View>
         }
         renderItem={({ item, index }) => {
-          const active = index === queueIndex && playing;
+          // 렌더는 tracks 전체지만 재생 큐는 playable만 → 큐 인덱스는 videoId로 찾는다 (두 배열 어긋남 방지)
+          const playableIndex = playable.findIndex((t) => t.videoId === item.videoId);
+          const isPlayable = playableIndex !== -1;
+          const active = isPlayable && playing && playableIndex === queueIndex;
           return (
             <PressableScale
               style={[styles.trackRow, active && styles.trackActive]}
               onPress={() => {
-                setQueueIndex(index);
+                // 재생 불가(유튜브 전용) 곡은 미리듣기 큐를 흔들지 않도록 탭을 막는다
+                if (!isPlayable) {
+                  toast('유튜브 전용 곡이라 미리듣기를 지원하지 않아요');
+                  return;
+                }
+                setQueueIndex(playableIndex);
                 setPlaying(true);
               }}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`${index + 1}번째 곡, ${item.title}, ${item.artist}, ${item.nickname}님 추천`}
+              accessibilityLabel={`${index + 1}번째 곡, ${item.title}, ${item.artist}, ${item.nickname}님 추천${isPlayable ? '' : ', 유튜브 전용'}`}
             >
               <View>
                 <YoutubeArt videoId={item.videoId} style={styles.thumb} small />
@@ -227,6 +248,7 @@ export default function PlaylistDetail() {
                   {item.artist}
                 </Text>
               </View>
+              {!isPlayable && <Text style={[typography.tab, styles.ytOnly]}>유튜브 전용</Text>}
             </PressableScale>
           );
         }}
@@ -314,5 +336,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
   },
   trackText: { flex: 1, gap: spacing.xs },
+  ytOnly: { color: colors.text40 },
   miniAvatar: { position: 'absolute', right: -6, bottom: -4 },
 });

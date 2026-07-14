@@ -1,5 +1,5 @@
 import { Text, View, StyleSheet } from 'react-native';
-import { colors, radius, shadow, size as sizeToken, typography } from '@/theme/tokens';
+import { colors, radius, shadow, size as sizeToken, spacing, typography } from '@/theme/tokens';
 
 interface Props {
   nickname: string;
@@ -52,5 +52,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  overlap: { marginRight: -4 },
+  overlap: { marginRight: -spacing.xs }, // Figma mr -4 = -xs
 });

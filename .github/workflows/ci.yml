@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 고정 SHA (공급망 보안)
+        with:
+          persist-credentials: false # push 불필요 job — 토큰을 러너 git config에 남기지 않는다
 
       - name: Node 설정
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
@@ -51,6 +53,8 @@ jobs:
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 고정 SHA (공급망 보안)
+        with:
+          persist-credentials: false # push 불필요 job — 토큰을 러너 git config에 남기지 않는다
 
       - name: 린트 실행
         run: |

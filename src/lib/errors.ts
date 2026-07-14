@@ -56,7 +56,8 @@ function codeOf(error: unknown): AppErrorCode {
     // Functions는 'functions/not-found' 형태로 준다
     const raw = String((error as { code: unknown }).code);
     const bare = raw.includes('/') ? raw.split('/')[1] : raw;
-    if (bare in MESSAGES) return bare as AppErrorCode;
+    // prototype 체인 제외 — 'toString' 같은 코드가 상속 함수를 잡아 매핑이 깨지는 것 방지
+    if (Object.prototype.hasOwnProperty.call(MESSAGES, bare)) return bare as AppErrorCode;
   }
   return 'unknown';
 }

@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   action: {
     marginTop: spacing.sm,
-    minHeight: size.ctaSm,
+    minHeight: size.touch, // iOS HIG 최소 터치 타깃 44pt
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     backgroundColor: colors.white10,

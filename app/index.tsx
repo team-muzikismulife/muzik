@@ -138,6 +138,7 @@ export default function Onboarding() {
                   autoCapitalize="characters"
                   autoCorrect={false}
                   returnKeyType="go"
+                  onSubmitEditing={() => canJoin && router.push(`/r/${inviteCode}`)}
                   accessibilityLabel="초대 코드 입력"
                 />
                 <PressableScale

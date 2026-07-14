@@ -26,7 +26,17 @@ interface IconProps {
 }
 
 export function Icon({ name, size: s = size.icon, color = colors.text }: IconProps) {
-  return <Feather name={ICONS[name]} size={s} color={color} />;
+  // 아이콘은 항상 장식용 — 의미는 부모(IconButton 등)의 accessibilityLabel이 전달한다.
+  // 스크린리더에서 글리프가 무의미한 문자로 읽히지 않도록 숨긴다 (Avatar와 동일 규칙).
+  return (
+    <Feather
+      name={ICONS[name]}
+      size={s}
+      color={color}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    />
+  );
 }
 
 interface IconButtonProps extends IconProps {
