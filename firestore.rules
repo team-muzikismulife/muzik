@@ -36,9 +36,12 @@ service cloud.firestore {
       match /days/{dateKey}   { allow read: if isMember(roomId); }
     }
 
-    // 초대 코드 → 방 역참조. 코드를 아는 사람은 roomId를 알 수 있어야 입장이 가능하다
+    // 초대 코드 → 방 역참조. 코드를 아는 사람은 roomId를 알 수 있어야 입장이 가능하다.
+    // **get만 허용한다.** allow read(=get+list)로 열면 조건이 resource.data를 안 보므로
+    // 로그인한 누구나 invites 컬렉션을 통째로 긁어 모든 방의 초대 코드를 열거할 수 있다
+    // (Firestore list는 all-or-nothing). 코드는 방의 유일한 열쇠라 이건 치명적이다.
     match /invites/{code} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn();
     }
 
     // ── 참여 중인 팀 목록 (온보딩) ──

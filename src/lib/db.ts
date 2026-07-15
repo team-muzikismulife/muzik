@@ -47,8 +47,13 @@ export async function fetchMyTeams(uid: string): Promise<TeamSummary[]> {
     .map((d) => d.ref.parent.parent?.id)
     .filter((id): id is string => !!id);
 
-  const teams = await Promise.all(roomIds.map(fetchTeam));
-  return teams.filter((t): t is TeamSummary => t !== null);
+  // allSettled로 격리한다 — 방 하나 조회가 실패해도 나머지 팀은 보여준다.
+  // 온보딩은 포커스마다 재조회되는 핵심 경로라, 부분 실패에 화면 전체가 무너지면 안 된다.
+  const results = await Promise.allSettled(roomIds.map(fetchTeam));
+  return results
+    .filter((r): r is PromiseFulfilledResult<TeamSummary | null> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter((t): t is TeamSummary => t !== null);
 }
 
 /** 방 하나 + 아바타용 멤버 4명. 방이 사라졌으면 null (멤버 문서만 남은 경우) */
