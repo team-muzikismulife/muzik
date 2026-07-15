@@ -5,11 +5,63 @@ import {
   getDoc,
   getDocs,
   limit,
+  onSnapshot,
+  orderBy,
   query,
   where,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Member, Room } from '@/types/models';
+import type { Member, Room, Track } from '@/types/models';
+
+/**
+ * 실시간 구독 (docs/frontend.md § Data Fetching)
+ * onSnapshot은 **반드시 (next, error) 2-arg** — 조용히 죽는 구독을 만들지 않는다.
+ */
+
+/** 방 문서 (팀 이름·인원수) 구독 */
+export function subscribeRoom(
+  roomId: string,
+  next: (room: Room | null) => void,
+  error: (e: unknown) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'rooms', roomId),
+    (snap) => next(snap.exists() ? (snap.data() as Room) : null),
+    error,
+  );
+}
+
+/** 멤버 전체 구독 (팀원 목록) */
+export function subscribeMembers(
+  roomId: string,
+  next: (members: Member[]) => void,
+  error: (e: unknown) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'rooms', roomId, 'members'), orderBy('joinedAt', 'asc')),
+    (snap) => next(snap.docs.map((d) => d.data() as Member)),
+    error,
+  );
+}
+
+/** 특정 날짜의 트랙 구독 (order = 등록 순) */
+export function subscribeTracks(
+  roomId: string,
+  dateKey: string,
+  next: (tracks: Track[]) => void,
+  error: (e: unknown) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(
+      collection(db, 'rooms', roomId, 'tracks'),
+      where('dateKey', '==', dateKey),
+      orderBy('order', 'asc'),
+    ),
+    (snap) => next(snap.docs.map((d) => d.data() as Track)),
+    error,
+  );
+}
 
 /**
  * 읽기 레이어 (docs/frontend.md § Data Fetching)

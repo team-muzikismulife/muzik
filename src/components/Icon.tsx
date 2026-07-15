@@ -15,6 +15,8 @@ export const ICONS = {
   users: 'users',
   share: 'share',
   play: 'play',
+  close: 'x',
+  clipboard: 'clipboard',
 } as const;
 
 export type IconName = keyof typeof ICONS;
