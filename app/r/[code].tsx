@@ -105,6 +105,10 @@ export default function InviteEntry() {
               autoFocus
               accessibilityLabel="닉네임 입력"
             />
+            {/* 건드린 뒤에만 노출한다 — 처음 뜨자마자 "닉네임을 입력해 주세요"가 뜨면 잔소리다 */}
+            {nicknameInput !== null && !!nicknameError && (
+              <Text style={styles.error}>{nicknameError}</Text>
+            )}
           </View>
 
           <PressableScale
@@ -132,6 +136,7 @@ const styles = StyleSheet.create({
   intro: { gap: spacing.xs },
   help: { color: colors.text60 },
   label: { marginBottom: spacing.xs },
+  error: { ...typography.caption, color: colors.danger, marginTop: spacing.xs },
   input: {
     backgroundColor: colors.white5,
     borderRadius: radius.sm,
