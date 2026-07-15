@@ -25,8 +25,11 @@ service cloud.firestore {
     // ── 초대 코드 → roomId 역참조 ──
     // 개설 시 클라가 생성한다. 유일성은 클라 트랜잭션(create-if-absent)이 보장.
     // update/delete는 막아 코드 탈취를 방지.
+    // **get만 허용한다.** allow read(=get+list)로 열면 로그인한 누구나 invites를 통째로
+    // 긁어 모든 방의 초대 코드를 열거할 수 있다(Firestore list는 all-or-nothing). 코드는
+    // 방의 유일한 열쇠라 치명적 — 데모의 클라 직접 쓰기도 get/create만 필요하다.
     match /invites/{code} {
-      allow read:   if isSignedIn();
+      allow get:    if isSignedIn();
       allow create: if isSignedIn()
         && request.resource.data.keys().hasOnly(['roomId'])
         && request.resource.data.roomId is string;
