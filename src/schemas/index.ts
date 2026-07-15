@@ -51,6 +51,9 @@ export const CreateRoomInput = z.object({
   nickname: NicknameSchema,
 });
 
+/** 팀 정원 상한 (백엔드설계.md §3). 서버가 강제하고, 클라는 안내 문구에 쓴다 */
+export const MAX_MEMBERS = 30;
+
 export const JoinRoomInput = z.object({
   code: InviteCodeSchema,
   nickname: NicknameSchema,
