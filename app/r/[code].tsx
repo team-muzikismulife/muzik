@@ -15,7 +15,7 @@ import { StateView } from '@/components/StateView';
 import { PressableScale } from '@/components/PressableScale';
 import { fieldError, InviteCodeSchema, NicknameSchema } from '@/schemas';
 import { joinRoom } from '@/lib/api';
-import { toMessage } from '@/lib/errors';
+import { isOffline, toMessage } from '@/lib/errors';
 import { useSessionStore } from '@/store/session';
 
 /**
@@ -41,6 +41,8 @@ export default function InviteEntry() {
   const nickname = nicknameInput ?? lastNickname ?? '';
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 오프라인 같은 일시적 실패만 재시도할 값어치가 있다. 없는 코드·정원 초과는 재시도해도 같다.
+  const [retryable, setRetryable] = useState(false);
 
   const nicknameError = fieldError(NicknameSchema, nickname);
   const canJoin = !nicknameError && !joining;
@@ -57,21 +59,25 @@ export default function InviteEntry() {
     } catch (e: unknown) {
       // not-found·정원초과·오프라인 문구는 errors.ts의 joinRoom 컨텍스트가 만든다
       setError(toMessage(e, 'joinRoom'));
+      setRetryable(isOffline(e));
       setJoining(false);
     }
   };
 
-  // 코드 형태부터 틀렸거나(서버 왕복 전) 입장에 실패하면 — 다음 행동이 있는 에러 화면으로
+  // 코드 형태부터 틀렸거나(서버 왕복 전) 입장에 실패하면 — 다음 행동이 있는 에러 화면으로.
+  // 코드 형태 오류는 URL에 박혀 있어 재시도해도 그대로다 → 무조건 홈으로.
   const blockingError = codeError ?? error;
   if (blockingError) {
+    // 일시적 실패(오프라인)만 폼으로 되돌려 재시도시킨다 — 그 외엔 홈으로.
+    const canRetry = !codeError && retryable;
     return (
       <Screen>
         <StateView
           status="error"
           title="입장할 수 없어요"
           message={blockingError}
-          actionLabel="홈으로"
-          onAction={() => router.replace('/')}
+          actionLabel={canRetry ? '다시 시도' : '홈으로'}
+          onAction={canRetry ? () => setError(null) : () => router.replace('/')}
         />
       </Screen>
     );
