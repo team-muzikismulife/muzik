@@ -50,18 +50,22 @@ export async function fetchMyTeams(uid: string): Promise<TeamSummary[]> {
   // allSettled로 격리한다 — 방 하나 조회가 실패해도 나머지 팀은 보여준다.
   // 온보딩은 포커스마다 재조회되는 핵심 경로라, 부분 실패에 화면 전체가 무너지면 안 된다.
   const results = await Promise.allSettled(roomIds.map(fetchTeam));
-  const fulfilled = results.filter(
-    (r): r is PromiseFulfilledResult<TeamSummary | null> => r.status === 'fulfilled',
-  );
 
-  // 단, **전부 실패**했으면 빈 목록으로 숨기지 않는다 — 네트워크 장애를 "팀 없음"으로
-  // 표시하면 사용자가 있던 팀을 다시 만들려 든다. 그때는 에러를 던져 재시도를 유도한다.
-  // (fetchTeam이 null을 준 건 '방이 삭제됨'이라 정상 제외다 — 실패가 아니다)
-  if (fulfilled.length === 0 && results.length > 0) {
-    throw (results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason;
+  // 실제 팀만 추린다. fetchTeam이 준 null은 '방이 삭제됨'이라 정상 제외다(실패가 아니다).
+  const teams = results
+    .filter((r): r is PromiseFulfilledResult<TeamSummary | null> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter((t): t is TeamSummary => t !== null);
+
+  // 실제 팀이 하나도 없는데 **거부된 조회가 있으면** 빈 목록으로 숨기지 않는다 —
+  // 네트워크 장애를 "팀 없음"으로 표시하면 사용자가 있던 팀을 다시 만들려 든다.
+  // (삭제된 방 null과 조회 실패가 섞인 경우도 여기서 걸린다: 실제 팀 0 + 실패 존재 → throw)
+  const rejected = results.find((r) => r.status === 'rejected');
+  if (teams.length === 0 && rejected) {
+    throw (rejected as PromiseRejectedResult).reason;
   }
 
-  return fulfilled.map((r) => r.value).filter((t): t is TeamSummary => t !== null);
+  return teams;
 }
 
 /** 방 하나 + 아바타용 멤버 4명. 방이 사라졌으면 null (멤버 문서만 남은 경우) */
