@@ -1,54 +1,85 @@
 rules_version = '2';
 
-// ──────────────────────────────────────────────────
-// MUZIK IS MY LIFE — Firestore Security Rules (v2)
-// 정본: docs/백엔드설계.md §4
+// ══════════════════════════════════════════════════════════
+// ⚠️ 데모 전용 (demo/spark-web 브랜치 · Spark 무료 플랜)
 //
-// 대원칙: **쓰기는 전부 Cloud Functions(Admin SDK) 경유. 클라이언트는 읽기 전용.**
-// Admin SDK는 룰을 우회하므로, 여기서는 write를 한 줄도 열지 않는다.
-// 하루 1곡·서버 시각 dateKey·초대 코드 유일성 같은 규칙을 클라이언트가 우회할 수 없게
-// 만드는 가장 단순한 방법이다. 룰은 "누가 무엇을 읽을 수 있는가"에만 집중한다.
-// ──────────────────────────────────────────────────
+// 정본은 이게 아니다. 팀 정본은 feature/17의 v2 읽기 전용 룰
+// ("쓰기는 전부 Cloud Functions 경유", docs/백엔드설계.md §4)이다.
+//
+// Spark에선 Functions를 배포할 수 없어, 데모를 위해 **클라이언트 직접 쓰기**를
+// 허용하되 핵심 불변식(소유권·정원·하루 1곡·필드 제한)을 Rules로 강제한다.
+// Blaze를 켜면 정본(Functions) 아키텍처로 돌아간다.
+// ══════════════════════════════════════════════════════════
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // 문서 read당 exists() 1회 → 비용이 있다. 리스트 쿼리는 컬렉션 단위 1회 평가.
+    function isSignedIn() { return request.auth != null; }
+    function myUid() { return request.auth.uid; }
     function isMember(roomId) {
       return isSignedIn()
-        && exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
+        && exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(myUid()));
     }
 
-    // 킬스위치 등 원격 설정 (handoffMode) — 로그인 전에도 읽어야 한다
-    match /config/app {
-      allow read: if true;
+    match /config/app { allow read: if true; }
+
+    // ── 초대 코드 → roomId 역참조 ──
+    // 개설 시 클라가 생성한다. 유일성은 클라 트랜잭션(create-if-absent)이 보장.
+    // update/delete는 막아 코드 탈취를 방지.
+    match /invites/{code} {
+      allow read:   if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['roomId'])
+        && request.resource.data.roomId is string;
     }
 
-    // 방과 그 하위 문서는 **그 방의 멤버만** 읽는다
     match /rooms/{roomId} {
       allow read: if isMember(roomId);
 
-      match /members/{uid}    { allow read: if isMember(roomId); }
-      match /tracks/{trackId} { allow read: if isMember(roomId); }
-      match /days/{dateKey}   { allow read: if isMember(roomId); }
-    }
+      // 개설: 본인이 방장, 멤버수 1로 시작, 이름 길이 제한
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == myUid()
+        && request.resource.data.memberCount == 1
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 20;
 
-    // 초대 코드 → 방 역참조. 코드를 아는 사람은 roomId를 알 수 있어야 입장이 가능하다
-    match /invites/{code} {
-      allow read: if isSignedIn();
+      // 입장: 비멤버가 memberCount를 **정확히 +1**, 상한 30. 다른 필드는 못 건드림.
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
+        && request.resource.data.memberCount == resource.data.memberCount + 1
+        && request.resource.data.memberCount <= 30;
+
+      // ── 멤버 ──
+      match /members/{uid} {
+        allow read: if isMember(roomId);
+        // 본인 문서만. 개설·입장의 진입점이라 isMember를 요구하지 않는다.
+        allow create, update: if isSignedIn()
+          && uid == myUid()
+          && request.resource.data.uid == myUid();
+      }
+
+      // ── 트랙 (하루 1곡) ──
+      match /tracks/{trackId} {
+        allow read: if isMember(roomId);
+        // 문서 ID = {uid}_{dateKey} + create-only → 하루 1곡을 ID로 강제
+        allow create: if isMember(roomId)
+          && request.resource.data.uid == myUid()
+          && trackId == myUid() + '_' + request.resource.data.dateKey;
+        // 수정·삭제는 본인 곡만
+        allow update, delete: if isMember(roomId) && resource.data.uid == myUid();
+      }
+
+      // ── 일자 집계 ── 멤버가 갱신 (곡 등록 시 trackCount 등)
+      match /days/{dateKey} {
+        allow read:  if isMember(roomId);
+        allow write: if isMember(roomId);
+      }
     }
 
     // ── 참여 중인 팀 목록 (온보딩) ──
-    // 내 멤버 문서는 roomId를 모르는 상태에서도 읽을 수 있어야 한다.
-    // collectionGroup('members').where('uid','==',myUid) 조회가 여기에 걸린다.
-    //
-    // 주의: 룰이 resource.data.uid를 보므로 **클라이언트 쿼리도 같은 제약(where uid == myUid)을
-    // 걸어야** 통과한다. 어긋나면 permission-denied가 나는데 원인이 룰인지 쿼리인지 헷갈린다.
+    // collectionGroup('members').where('uid','==',myUid) — 내 멤버 문서만 읽힌다.
     match /{path=**}/members/{memberId} {
-      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow read: if isSignedIn() && resource.data.uid == myUid();
     }
   }
 }
