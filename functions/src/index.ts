@@ -12,3 +12,4 @@ initializeApp();
 setGlobalOptions({ region: 'asia-northeast3' });
 
 export { createRoom } from './createRoom';
+export { joinRoom } from './joinRoom';

@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
-import type { CreateRoomInput } from '@/schemas';
+import type { CreateRoomInput, JoinRoomInput } from '@/schemas';
 
 /**
  * 쓰기 레이어 (docs/frontend.md § Data Fetching)
@@ -17,6 +17,17 @@ export interface CreateRoomResult {
 /** 팀 개설 → roomId + 6자리 초대 코드 (백엔드설계.md §3) */
 export async function createRoom(input: CreateRoomInput): Promise<CreateRoomResult> {
   const call = httpsCallable<CreateRoomInput, CreateRoomResult>(functions, 'createRoom');
+  const { data } = await call(input);
+  return data;
+}
+
+export interface JoinRoomResult {
+  roomId: string;
+}
+
+/** 초대 코드로 입장 → roomId. 멱등(이미 멤버면 닉네임만 갱신) (백엔드설계.md §3) */
+export async function joinRoom(input: JoinRoomInput): Promise<JoinRoomResult> {
+  const call = httpsCallable<JoinRoomInput, JoinRoomResult>(functions, 'joinRoom');
   const { data } = await call(input);
   return data;
 }
