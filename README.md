@@ -3,7 +3,7 @@
 지인 그룹이 **하루 한 곡씩** 유튜브 음원을 추천해 함께 만드는 데일리 공유 플레이리스트 iOS 앱.
 
 - **팀:** 김승완 · 김보규 · 정규호 (글로벌미디어학부)
-- **플랫폼:** iOS 네이티브 (Swift + SwiftUI), 게스트 입장은 App Clips
+- **플랫폼:** React native 
 - **백엔드:** Firebase (Firestore · Anonymous Auth · Cloud Functions · FCM)
 
 ## 핵심 컨셉
