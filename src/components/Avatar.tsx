@@ -1,5 +1,6 @@
 import { Text, View, StyleSheet } from 'react-native';
-import { colors, radius, shadow, size as sizeToken, spacing, typography } from '@/theme/tokens';
+import { radius, shadow, size as sizeToken, spacing, typography } from '@/theme/tokens';
+import { avatarColor } from '@/lib/avatar';
 
 interface Props {
   nickname: string;
@@ -14,12 +15,6 @@ interface Props {
   overlap?: boolean;
   /** 트랙 카드 아바타의 white glow — Figma: 0 0 10px rgba(255,255,255,0.25) */
   glow?: boolean;
-}
-
-/** 닉네임 → 팔레트 인덱스. Cloud Functions도 같은 규칙으로 photoColor를 확정한다 */
-export function avatarColor(nickname: string): string {
-  const palette = colors.avatarPalette;
-  return palette[(nickname.codePointAt(0) ?? 0) % palette.length];
 }
 
 export function Avatar({ nickname, size = sizeToken.avatarMd, color, overlap, glow }: Props) {

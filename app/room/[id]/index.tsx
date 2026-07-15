@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FlatList, Text, View, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { colors, radius, size, spacing, typography } from '@/theme/tokens';
+import { colors, hitSlop, radius, size, spacing, typography } from '@/theme/tokens';
 import { Screen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
 import { SkeletonTrackCard } from '@/components/Skeleton';
@@ -104,8 +104,8 @@ export default function RoomHome() {
 
   // TODO(M1): session.uid / session.nickname 으로 교체
   const myUid = 'u2';
-  // TODO(M1): rooms/{id}.name 으로 교체
-  const teamName = '🎵 무직은 내 삶';
+  // TODO(M1): rooms/{id}.name 으로 교체. 팀 이모지 속성은 두지 않는다 (온보딩구현계획.md 결정 4)
+  const teamName = '무직은 내 삶';
 
   // TODO(M2): room store의 구독 상태로 교체
   const [status, setStatus] = useState<Status>('ready');
@@ -148,20 +148,26 @@ export default function RoomHome() {
 
   return (
     <Screen edges={['top']}>
-      {/* 헤더 — 팀 이름 + 팀 전환 chevron / 알림 */}
+      {/* 헤더 — [<] 팀 목록으로 + 팀 이름 / 알림 */}
       <View style={styles.header}>
-        <PressableScale
-          style={styles.titleRow}
-          onPress={() => router.back()}
-          onLongPress={cycleStatus}
-          accessibilityRole="button"
-          accessibilityLabel={`${teamName}, 다른 팀으로 전환`}
-        >
+        <View style={styles.titleRow}>
+          {/*
+           * 팀 목록(온보딩)으로 돌아간다 = 팀 전환 (온보딩구현계획.md 결정 5).
+           * 딥링크로 이 화면에 바로 진입하면 뒤로 갈 스택이 없다 → 그땐 온보딩으로 교체 이동.
+           */}
+          <PressableScale
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            onLongPress={cycleStatus}
+            hitSlop={hitSlop.md}
+            accessibilityRole="button"
+            accessibilityLabel="팀 목록으로"
+          >
+            <Icon name="chevronLeft" size={size.iconLg} color={colors.text} />
+          </PressableScale>
           <Text style={typography.title} numberOfLines={1}>
             {teamName}
           </Text>
-          <Icon name="chevronDown" size={size.iconLg} color={colors.text} />
-        </PressableScale>
+        </View>
 
         {/* 알림 벨: 곡 등록·코멘트 반응 알림용 (스펙 §2-A). 코멘트 기능 도입 후 활성화 */}
         <View style={styles.bell}>
@@ -227,7 +233,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.md,
+    // Figma 157:744 — 헤더 높이 68 = 20 + 28 + 20
+    paddingVertical: spacing.xl,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
