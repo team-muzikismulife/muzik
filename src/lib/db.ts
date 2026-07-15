@@ -50,10 +50,18 @@ export async function fetchMyTeams(uid: string): Promise<TeamSummary[]> {
   // allSettled로 격리한다 — 방 하나 조회가 실패해도 나머지 팀은 보여준다.
   // 온보딩은 포커스마다 재조회되는 핵심 경로라, 부분 실패에 화면 전체가 무너지면 안 된다.
   const results = await Promise.allSettled(roomIds.map(fetchTeam));
-  return results
-    .filter((r): r is PromiseFulfilledResult<TeamSummary | null> => r.status === 'fulfilled')
-    .map((r) => r.value)
-    .filter((t): t is TeamSummary => t !== null);
+  const fulfilled = results.filter(
+    (r): r is PromiseFulfilledResult<TeamSummary | null> => r.status === 'fulfilled',
+  );
+
+  // 단, **전부 실패**했으면 빈 목록으로 숨기지 않는다 — 네트워크 장애를 "팀 없음"으로
+  // 표시하면 사용자가 있던 팀을 다시 만들려 든다. 그때는 에러를 던져 재시도를 유도한다.
+  // (fetchTeam이 null을 준 건 '방이 삭제됨'이라 정상 제외다 — 실패가 아니다)
+  if (fulfilled.length === 0 && results.length > 0) {
+    throw (results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason;
+  }
+
+  return fulfilled.map((r) => r.value).filter((t): t is TeamSummary => t !== null);
 }
 
 /** 방 하나 + 아바타용 멤버 4명. 방이 사라졌으면 null (멤버 문서만 남은 경우) */
