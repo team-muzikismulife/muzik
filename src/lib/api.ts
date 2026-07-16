@@ -64,14 +64,14 @@ export async function registerTrack(
   local: RegisterTrackLocal,
 ): Promise<Track> {
   // 계약 재검증 — 클라·Functions가 같은 스키마를 공유한다(roomId 포함 검증)
-  const { videoId, comment } = RegisterTrackInput.parse(input);
+  const { roomId, videoId, comment } = RegisterTrackInput.parse(input);
 
   // M2-a: 클라 시각. M2-b에선 **서버 시각**이 유일 기준이다(시계 조작 방지, §3)
   const dateKey = todayKey();
   const store = useTrackStore.getState();
 
-  // 하루 1곡 낙관 차단 — M2-b에선 서버의 create-only가 원천 차단한다
-  if (store.has(local.uid, dateKey)) throw alreadyExistsError();
+  // 하루 1곡 낙관 차단 — **방 단위**다. M2-b에선 rooms/{roomId}/tracks 경로가 이 격리를 준다
+  if (store.has(roomId, local.uid, dateKey)) throw alreadyExistsError();
 
   const now = Date.now();
   const track: Track = {
@@ -90,6 +90,6 @@ export async function registerTrack(
     durationSec: 0,
     metaRefreshedAt: now,
   };
-  store.upsert(track);
+  store.upsert(roomId, track);
   return track;
 }

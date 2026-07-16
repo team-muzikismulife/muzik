@@ -82,8 +82,8 @@ export default function RoomHome() {
   // TODO(M2-b): onSnapshot(tracks) 구독으로 교체 (docs/곡등록설계.md §8)
   const byId = useTrackStore((s) => s.byId);
   const tracks = useMemo(
-    () => (status === 'empty' ? [] : tracksForDate(byId, today)),
-    [status, byId, today],
+    () => (status === 'empty' ? [] : tracksForDate(byId, id, today)),
+    [status, byId, id, today],
   );
 
   // 팀원 순서대로 한 줄씩 — 곡이 없으면 빈 카드

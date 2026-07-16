@@ -55,7 +55,7 @@ export function TrackForm({ roomId, uid, nickname }: Props) {
   const router = useRouter();
 
   // 재진입 분기(§6·§9): 오늘 이미 올렸으면 폼 대신 "이미 올렸어요"를 보여준다.
-  const alreadyToday = useTrackStore((s) => s.has(uid, todayKey()));
+  const alreadyToday = useTrackStore((s) => s.has(roomId, uid, todayKey()));
   const [alreadyDone, setAlreadyDone] = useState(alreadyToday);
 
   const [url, setUrl] = useState('');
@@ -81,6 +81,11 @@ export function TrackForm({ roomId, uid, nickname }: Props) {
 
   // URL → 파싱 → oEmbed 미리보기 (디바운스)
   useEffect(() => {
+    // **입력이 바뀌는 즉시** 증가시킨다. early return 뒤에 두면 URL을 지우거나 잘못된 값으로
+    // 바꿔도 reqId가 그대로라, 이미 날아간 oEmbed 응답이 늦게 도착해 `id === reqId.current`를
+    // 통과한다 — 빈 입력인데 preview가 떠서 지운 곡이 등록된다. clearTimeout은 디바운스만 막지
+    // 이미 in-flight인 fetch는 못 막는다.
+    const id = ++reqId.current;
     const raw = url.trim();
     if (!raw) {
       setPhase({ kind: 'idle' });
@@ -92,7 +97,6 @@ export function TrackForm({ roomId, uid, nickname }: Props) {
       return;
     }
 
-    const id = ++reqId.current;
     setPhase({ kind: 'fetching' });
     const timer = setTimeout(() => {
       fetchVideoMeta(videoId)
