@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Text, View, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, hitSlop, radius, size, spacing, typography } from '@/theme/tokens';
@@ -12,6 +12,7 @@ import { MissionBanner } from '@/components/MissionBanner';
 import { TrackCard, AddTrackCard } from '@/components/TrackCard';
 import { todayKey } from '@/lib/date';
 import { themeFor } from '@/lib/themes';
+import { tracksForDate, useTrackStore } from '@/store/tracks';
 import type { Track } from '@/types/models';
 
 /**
@@ -32,42 +33,6 @@ const MOCK_MEMBERS: Member[] = [
   { uid: 'u1', nickname: '보규' },
   { uid: 'u2', nickname: '승완' },
   { uid: 'u3', nickname: '규호' },
-];
-
-/**
- * 목업도 **실제 videoId의 실제 메타데이터**여야 한다.
- * 예전 목업은 videoId와 무관한 제목·아티스트를 손으로 적어서, 카드 배경(videoId 파생)과
- * 텍스트가 서로 다른 곡을 가리키고 있었다. 지어내지 말 것.
- */
-const MOCK_TRACKS: Track[] = [
-  {
-    videoId: 'pM86f0NAsCY', // 백예린 '1-4-3' Lyric Video
-    title: '1-4-3',
-    artist: 'Yerin Baek',
-    comment: '1-4-3의 의미는 I LOVE YOU',
-    uid: 'u1',
-    nickname: '보규',
-    dateKey: todayKey(),
-    order: 1,
-    createdAt: Date.now(),
-    embeddable: true,
-    durationSec: 218,
-    metaRefreshedAt: Date.now(),
-  },
-  {
-    videoId: 'JaIMSzE5yLA', // 실리카겔 'NO PAIN' M/V
-    title: 'NO PAIN',
-    artist: 'Silica Gel 실리카겔',
-    comment: '',
-    uid: 'u3',
-    nickname: '규호',
-    dateKey: todayKey(),
-    order: 2,
-    createdAt: Date.now(),
-    embeddable: true,
-    durationSec: 254,
-    metaRefreshedAt: Date.now(),
-  },
 ];
 
 const DAY_MS = 86_400_000;
@@ -112,7 +77,14 @@ export default function RoomHome() {
 
   const today = todayKey();
   const dateKeys = recentDateKeys();
-  const tracks = status === 'empty' ? [] : MOCK_TRACKS;
+
+  // 오늘 곡들 — track store 구독(M2-a). 등록 모달이 upsert하면 여기가 즉시 다시 그려진다.
+  // TODO(M2-b): onSnapshot(tracks) 구독으로 교체 (docs/곡등록설계.md §8)
+  const byId = useTrackStore((s) => s.byId);
+  const tracks = useMemo(
+    () => (status === 'empty' ? [] : tracksForDate(byId, today)),
+    [status, byId, today],
+  );
 
   // 팀원 순서대로 한 줄씩 — 곡이 없으면 빈 카드
   const rows: Row[] = MOCK_MEMBERS.map((member) => ({
@@ -121,9 +93,7 @@ export default function RoomHome() {
   }));
   const doneToday = tracks.some((t) => t.uid === myUid);
 
-  const openAddTrack = () => {
-    // TODO(M2): /room/{id}/track/new 모달
-  };
+  const openAddTrack = () => router.push(`/room/${id}/track/new`);
 
   /** __DEV__ 전용: 헤더를 길게 눌러 로딩·빈 상태·에러를 순회한다 (데모/QA용) */
   const cycleStatus = () => {
