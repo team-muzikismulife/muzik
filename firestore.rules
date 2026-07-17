@@ -36,12 +36,19 @@ service cloud.firestore {
       match /days/{dateKey}   { allow read: if isMember(roomId); }
     }
 
-    // 초대 코드 → 방 역참조. 코드를 아는 사람은 roomId를 알 수 있어야 입장이 가능하다.
-    // **get만 허용한다.** allow read(=get+list)로 열면 조건이 resource.data를 안 보므로
-    // 로그인한 누구나 invites 컬렉션을 통째로 긁어 모든 방의 초대 코드를 열거할 수 있다
-    // (Firestore list는 all-or-nothing). 코드는 방의 유일한 열쇠라 이건 치명적이다.
+    // 초대 코드 → 방 역참조. **클라이언트는 읽지 않는다.**
+    //
+    // 코드 → roomId 해결은 joinRoom이 Admin SDK로 한다(룰을 타지 않는다). 그래서 여기를
+    // 열어줄 이유가 없는데, 열어두면 코드가 유효한지 조용히 확인하는 오라클이 된다.
+    // 익명 로그인은 누구나 무제한으로 만들 수 있고 Firestore 직접 읽기는 백엔드설계 §6이
+    // 기대하는 "Functions rate limit"을 우회하며 호출 로그도 남기지 않는다. 코드는 방의
+    // 유일한 열쇠라, 뚫리면 남의 팀에 그냥 입장된다.
+    //
+    // list는 원래부터 막혀 있었지만(all-or-nothing) get도 닫는다. 무차별 대입은 이제
+    // joinRoom을 부를 수밖에 없고 — 그건 rate limit이 걸리고, 로그가 남고, 성공하면
+    // memberCount가 올라 멤버 눈에 띈다.
     match /invites/{code} {
-      allow get: if isSignedIn();
+      allow read: if false;
     }
 
     // ── 참여 중인 팀 목록 (온보딩) ──

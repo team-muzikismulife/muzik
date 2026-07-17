@@ -1,11 +1,15 @@
 /**
  * 데일리 테마 — 서버 없이 앱 내장 풀에서 dateKey 해시로 결정론적 선택.
- * 모든 기기가 같은 dateKey에 같은 테마를 본다. Functions/운영 비용 0.
+ * 같은 풀을 가진 기기끼리는 같은 dateKey에 같은 테마를 본다. Functions/운영 비용 0.
  *
- * 주의: 이 함수는 매 호출 재계산이라 THEMES를 바꾸면 **과거 dateKey의 결과도 바뀐다.**
- * 과거 기록의 테마 불변은 이 함수가 아니라 `days.themeText` 스냅샷으로 보장한다(구현계획서 §2).
- * → 오늘 테마 = themeFor(todayKey()), 과거 테마 = days.themeText.
+ * ⚠️ **THEMES는 함부로 건드리면 안 된다.** 선택이 `hash % THEMES.length`라서
+ * 항목을 하나만 추가·삭제해도 나눗셈의 분모가 바뀌어 **모든 dateKey의 테마가 재배치된다**
+ * (30→31이면 임의의 날짜가 같은 테마로 남을 확률은 약 1/30). 재정렬도 마찬가지다.
+ *
+ * 그래서 화면에는 이 함수를 직접 쓰지 말고 `missionFor()`를 쓴다 — 아래 설명 참고.
  */
+import type { Day } from '../types/models';
+
 const THEMES = [
   '비 내릴 때 듣기 좋은 노래',
   '월요일 출근길을 깨우는 곡',
@@ -39,11 +43,31 @@ const THEMES = [
   '올해 발매된 곡 중 최고의 발견',
 ] as const;
 
-/** dateKey('YYYY-MM-DD') → 테마. 간단한 문자열 해시로 결정론적 선택 */
+/**
+ * dateKey('YYYY-MM-DD') → 테마. 간단한 문자열 해시로 결정론적 선택.
+ * **화면에 직접 쓰지 말 것 — `missionFor()`를 쓴다.** 이건 스냅샷이 없을 때의 폴백이다.
+ */
 export function themeFor(dateKey: string): string {
   let hash = 0;
   for (let i = 0; i < dateKey.length; i++) {
     hash = (hash * 31 + dateKey.charCodeAt(i)) >>> 0;
   }
   return THEMES[hash % THEMES.length];
+}
+
+/**
+ * 화면에 띄울 미션 텍스트. **days 문서가 있으면 그 스냅샷이 정본이다.**
+ *
+ * 왜 로컬 계산을 그대로 믿으면 안 되나: 앱 배포와 Functions 배포는 독립이고 구버전 앱
+ * 사용자는 항상 존재한다. THEMES 풀이 한 번이라도 바뀌면 두 쪽의 `% length`가 갈라져서,
+ * 구버전 앱이 오늘 본 미션과 서버가 `days.themeText`에 기록한 미션이 달라진다.
+ * 그러면 다음 날 과거 탭에 "어제 본 것과 다른 미션"이 뜬다 — 스냅샷으로 막으려던 바로 그 증상이다.
+ *
+ * 그래서 서버가 확정한 값이 있으면 무조건 그걸 쓰고, 로컬 계산은 **그날 첫 곡이 올라오기 전**
+ * (days 문서가 아직 없는 구간)에만 노출된다. 첫 곡이 등록되는 순간 서버 값으로 수렴한다.
+ *
+ * @param day 해당 dateKey의 days 문서. 없으면(곡 0개) undefined/null.
+ */
+export function missionFor(dateKey: string, day?: Pick<Day, 'themeText'> | null): string {
+  return day?.themeText || themeFor(dateKey);
 }
