@@ -11,8 +11,8 @@ import { DateTabs } from '@/components/DateTabs';
 import { MissionBanner } from '@/components/MissionBanner';
 import { TrackCard, AddTrackCard } from '@/components/TrackCard';
 import { todayKey } from '@/lib/date';
-import { themeFor } from '@/lib/themes';
-import type { Track } from '@/types/models';
+import { missionFor } from '@/lib/themes';
+import type { Day, Track } from '@/types/models';
 
 /**
  * 메인 홈 (Figma 1:1732 "Main")
@@ -113,6 +113,9 @@ export default function RoomHome() {
   const today = todayKey();
   const dateKeys = recentDateKeys();
   const tracks = status === 'empty' ? [] : MOCK_TRACKS;
+  // TODO(M2): days/{today} 구독으로 교체. 곡 0개면 문서가 없어 null이 정상이다 —
+  // 그때만 missionFor가 로컬 계산으로 떨어진다
+  const todayDay: Day | null = null;
 
   // 팀원 순서대로 한 줄씩 — 곡이 없으면 빈 카드
   const rows: Row[] = MOCK_MEMBERS.map((member) => ({
@@ -177,7 +180,7 @@ export default function RoomHome() {
       </View>
 
       {/* 오늘의 미션 — 스트립 전체가 곡 등록 진입점 */}
-      <MissionBanner mission={themeFor(today)} done={doneToday} onPress={openAddTrack} />
+      <MissionBanner mission={missionFor(today, todayDay)} done={doneToday} onPress={openAddTrack} />
 
       <DateTabs
         dateKeys={dateKeys}

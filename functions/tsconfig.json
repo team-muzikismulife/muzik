@@ -18,6 +18,11 @@
     "src/**/*.ts",
     "../src/schemas/**/*.ts",
     "../src/lib/avatar.ts",
+    // registerTrack(M2)이 서버 dateKey를 확정하고 days.themeText를 기록한다.
+    // 서버가 이 둘의 복사본을 갖는 순간 클라와 갈라진다 — dateKey는 하루가 어긋나고,
+    // 테마는 사용자가 화면에서 본 것과 다른 값이 기록에 남는다.
+    "../src/lib/date.ts",
+    "../src/lib/themes.ts",
     "../src/theme/tokens.ts",
     "../src/types/models.ts"
   ]

@@ -12,9 +12,9 @@ import { PressableScale } from '@/components/PressableScale';
 import { Avatar } from '@/components/Avatar';
 import { YoutubeArt } from '@/components/YoutubeArt';
 import { buildWatchVideosUrl } from '@/lib/youtube';
-import { themeFor } from '@/lib/themes';
+import { missionFor } from '@/lib/themes';
 import { toast } from '@/store/ui';
-import type { Track } from '@/types/models';
+import type { Day, Track } from '@/types/models';
 
 /**
  * 플레이리스트 상세 (Figma 4:1332)
@@ -48,6 +48,8 @@ export default function PlaylistDetail() {
   const [playing, setPlaying] = useState(false);
 
   const tracks = MOCK_TRACKS;
+  // TODO(M4): days/{dateKey} 구독으로 교체. 목데이터엔 스냅샷이 없어 missionFor가 로컬 계산으로 떨어진다
+  const day: Day | null = null;
   // 미리듣기 큐 — embeddable === false / unavailable 곡은 인앱 재생이 안 된다
   const playable = tracks.filter((t) => t.embeddable && !t.unavailable);
   const current = playable[queueIndex];
@@ -133,9 +135,9 @@ export default function PlaylistDetail() {
                 </View>
               </View>
               <LinearGradient colors={colors.heroFade} style={styles.heroGradient}>
-                {/* TODO(M4): 과거(dateKey !== todayKey())는 days.themeText 스냅샷을 써야 한다.
-                    themeFor는 오늘 테마 계산용 — THEMES 풀이 바뀌면 과거 테마가 소급 변조된다 (구현계획서 §2) */}
-                <Text style={typography.heroTitle}>{themeFor(dateKey)}</Text>
+                {/* TODO(M4): day = days/{dateKey} 구독값으로 교체 — 지금은 목데이터라 스냅샷이 없다.
+                    missionFor가 스냅샷 우선 규칙을 갖고 있다 (src/lib/themes.ts) */}
+                <Text style={typography.heroTitle}>{missionFor(dateKey, day)}</Text>
                 <Text style={typography.caption}>{formatDate(dateKey)}의 플레이리스트</Text>
               </LinearGradient>
             </View>
