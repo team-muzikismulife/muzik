@@ -87,6 +87,11 @@ Firebase 키는 `.env` (`.env.example` 참고). 백엔드 개발은 Emulator Sui
 - [ ] **M1** — 방 생성 → 코드 공유 → 다른 기기 입장 → 멤버 실시간 반영
       (Emulator Suite, `functions/`, createRoom/joinRoom, 익명 로그인 + AsyncStorage 영속)
 - [ ] **M2** — 링크 붙여넣기 → 미리보기 → 등록 → 상대 기기에 즉시 표시. 하루 2곡은 서버가 거부
-- [ ] **M3** — 유튜브 앱에서 전곡 연속 재생 + 킬스위치 즉시 전환
-- [ ] **M4** — 과거 날짜별 플레이리스트, 당일 본인 곡만 수정·삭제
+- [~] **M3** — 유튜브 앱에서 전곡 연속 재생 + 킬스위치 즉시 전환
+      (demo/spark-web) 상세 화면 실데이터 구독·멤버/공유 배선·킬스위치(`config/app.handoffMode`,
+      기본 watch_videos·문서 없으면 잠듦)·멤버 모달까지 완료. 실기기 연속재생·videos.list embeddable은 M5.
+- [~] **M4** — 과거 날짜별 플레이리스트, 당일 본인 곡만 수정·삭제
+      (demo/spark-web) 클라 `updateTrack`/`deleteTrack`(커버 재지정·days 0이면 삭제), 수정은
+      `track/new` 단일 모달 자동 전환(editTrack), 삭제는 인라인 2단 확인, 날짜 탭 `days` 구독 실데이터.
+      정본 Functions(updateTrack/deleteTrack/refreshMeta)·30일 메타 갱신은 Blaze/M5.
 - [ ] **M5** — Security Rules 하드닝 + 실 Firebase 프로젝트 + TestFlight
