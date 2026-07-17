@@ -36,7 +36,10 @@ export default function CreateRoom() {
   const setLastNickname = useSessionStore((s) => s.setLastNickname);
 
   const [name, setName] = useState('');
-  const [nickname, setNickname] = useState(lastNickname ?? '');
+  // null = 아직 안 건드림. 그동안엔 lastNickname을 보여준다 — AsyncStorage 복원이 늦게 와도
+  // (useState 초기값으로 굳지 않고) 자동으로 채워진다. props→state 동기화 effect를 피하는 방법.
+  const [nicknameInput, setNicknameInput] = useState<string | null>(null);
+  const nickname = nicknameInput ?? lastNickname ?? '';
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<{ roomId: string; inviteCode: string } | null>(null);
 
@@ -161,7 +164,7 @@ export default function CreateRoom() {
             <Text style={[typography.caption, styles.label]}>이 팀에서 쓸 닉네임</Text>
             <TextInput
               value={nickname}
-              onChangeText={setNickname}
+              onChangeText={setNicknameInput}
               placeholder="닉네임"
               placeholderTextColor={colors.text40}
               style={styles.input}
