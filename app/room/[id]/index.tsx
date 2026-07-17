@@ -12,10 +12,8 @@ import { MissionBanner } from '@/components/MissionBanner';
 import { TrackCard, AddTrackCard } from '@/components/TrackCard';
 import { todayKey } from '@/lib/date';
 import { themeFor } from '@/lib/themes';
-import { shareInvite } from '@/lib/invite';
 import { useSessionStore } from '@/store/session';
 import { useRoomStore } from '@/store/room';
-import { toast } from '@/store/ui';
 import type { Member, Track } from '@/types/models';
 
 /**
@@ -69,17 +67,6 @@ export default function RoomHome() {
 
   const openAddTrack = () => router.push(`/room/${id}/track/new`);
 
-  /** 초대 공유 — 코드 + (배포 도메인 기준) https 링크. 상세 히어로와 같은 경로를 쓴다 */
-  const shareTeam = async () => {
-    const code = room?.inviteCode;
-    if (!code) {
-      toast('초대 코드를 불러오는 중이에요');
-      return;
-    }
-    const result = await shareInvite(teamName, code);
-    if (result === 'copied') toast('초대 내용을 복사했어요'); // 공유 시트가 없는 환경(데스크톱 웹)
-  };
-
   if (status === 'error') {
     return (
       <Screen>
@@ -118,13 +105,6 @@ export default function RoomHome() {
             size={size.iconLg}
             accessibilityLabel="팀원·초대 코드"
             onPress={() => router.push(`/room/${id}/members`)}
-          />
-          {/* 초대: 상세 화면까지 가지 않아도 여기서 바로 공유 (상세 히어로와 같은 동작) */}
-          <IconButton
-            name="share"
-            size={size.iconLg}
-            accessibilityLabel="초대 공유"
-            onPress={shareTeam}
           />
           {/* 알림 벨: 곡별 코멘트 기능 도입 후 활성화 (현재 비활성) */}
           <View style={styles.bell}>

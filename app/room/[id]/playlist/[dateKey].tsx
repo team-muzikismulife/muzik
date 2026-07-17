@@ -12,7 +12,6 @@ import { PressableScale } from '@/components/PressableScale';
 import { Avatar } from '@/components/Avatar';
 import { YoutubeArt } from '@/components/YoutubeArt';
 import { buildWatchVideosUrl } from '@/lib/youtube';
-import { shareInvite } from '@/lib/invite';
 import { themeFor } from '@/lib/themes';
 import { useRoomStore } from '@/store/room';
 import { useConfigStore } from '@/store/config';
@@ -91,16 +90,6 @@ export default function PlaylistDetail() {
     setPlaying(true);
   };
 
-  /** 초대 공유 — 6자 코드 + (웹에서 열리는) https 링크 (src/lib/invite.ts) */
-  const share = async () => {
-    const code = room?.inviteCode;
-    if (!code) {
-      toast('초대 코드를 불러오는 중이에요');
-      return;
-    }
-    const result = await shareInvite(room?.name ?? '', code);
-    if (result === 'copied') toast('초대 내용을 복사했어요');
-  };
 
   const backBar = (
     <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
@@ -170,20 +159,13 @@ export default function PlaylistDetail() {
                   variant="circle"
                   onPress={() => router.back()}
                 />
-                <View style={styles.topBarRight}>
-                  <IconButton
-                    name="users"
-                    accessibilityLabel="팀원·초대 코드"
-                    variant="circle"
-                    onPress={() => router.push(`/room/${id}/members`)}
-                  />
-                  <IconButton
-                    name="share"
-                    accessibilityLabel="초대 코드 공유하기"
-                    variant="circle"
-                    onPress={share}
-                  />
-                </View>
+                {/* 초대·공유는 팀원·초대 모달로 단일화 — 여기선 진입만 */}
+                <IconButton
+                  name="users"
+                  accessibilityLabel="팀원·초대 코드"
+                  variant="circle"
+                  onPress={() => router.push(`/room/${id}/members`)}
+                />
               </View>
               <LinearGradient colors={colors.heroFade} style={styles.heroGradient}>
                 {/* TODO(M4): 과거(dateKey !== todayKey())는 days.themeText 스냅샷을 써야 한다.
