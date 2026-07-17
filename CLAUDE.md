@@ -28,9 +28,10 @@ React Native (Expo SDK 53, expo-router) + Firebase (Anonymous Auth, Firestore, C
 2. **하루 1곡**: tracks 문서 ID `{uid}_{dateKey}` + create-only.
 3. **쓰기는 전부 Cloud Functions 경유**, 클라이언트는 Firestore 읽기 전용.
 4. **재생 = 유튜브 핸드오프**: `watch_videos?video_ids=` URL로 유튜브 앱에서 연속 재생. 인앱 IFrame은 '미리듣기' 보조. 킬스위치: `config/app.handoffMode`.
-5. **테마**: `src/lib/themes.ts` 내장 풀에서 dateKey 해시로 결정론적 선택.
-   **오늘 = 클라 계산**(곡 0개면 days 문서가 없는데 배너는 등록 전에도 떠야 함),
-   **과거 = `days.themeText` 스냅샷**(THEMES 풀이 바뀌어도 과거 기록이 소급 변조되면 안 됨).
+5. **테마**: `src/lib/themes.ts` 내장 풀에서 dateKey 해시로 결정론적 선택. 화면은 **`missionFor()`만** 쓴다.
+   **days 문서가 있으면 `days.themeText` 스냅샷이 정본**, 없을 때(그날 곡 0개)만 클라 계산으로 떨어진다.
+   `themeFor`를 직접 부르면 안 되는 이유: 선택이 `hash % THEMES.length`라 풀에 하나만 추가해도 **모든 날짜가
+   재배치**되는데, 앱 배포와 Functions 배포는 독립이라 구버전 앱이 본 미션과 서버가 기록한 미션이 갈라진다.
 6. **초대**: 6자리 코드(`invites/{code}` 역참조) + `muzik://r/{code}` 딥링크 병행.
 7. Data API는 `videos.list` 검증만 (API 키는 Functions 전용, 앱에 넣지 말 것). `playlists.insert` 사용 금지.
 8. **videoId만이 영구 원본.** 썸네일 URL은 **저장하지 않고 파생**한다(`src/lib/youtube.ts`).
