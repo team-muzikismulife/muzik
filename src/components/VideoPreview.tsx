@@ -1,24 +1,39 @@
-import { ActivityIndicator, Text, View, StyleSheet } from 'react-native';
-import { aspect, colors, radius, spacing, typography } from '@/theme/tokens';
+import { ActivityIndicator, Text, TextInput, View, StyleSheet } from 'react-native';
+import { aspect, colors, radius, size, spacing, typography } from '@/theme/tokens';
 import { YoutubeArt } from './YoutubeArt';
-
-export interface VideoMetaPreview {
-  videoId: string;
-  title: string;
-  artist: string;
-}
 
 interface Props {
   status: 'idle' | 'loading' | 'ready' | 'error';
-  meta: VideoMetaPreview | null;
+  /** 확정된 videoId (썸네일 파생용) — ready일 때만 존재 */
+  videoId: string | null;
+  /** 편집 가능한 곡명/가수 (oEmbed·iTunes 초기값 → 사용자가 수정) */
+  title: string;
+  artist: string;
+  onChangeTitle: (t: string) => void;
+  onChangeArtist: (t: string) => void;
+  titleError?: string | null;
+  artistError?: string | null;
   errorText?: string;
 }
 
+const FIELD_MAX = 80;
+
 /**
- * 등록 전 미리보기 카드 — "이 곡 맞아요?"를 보여준다 (docs/곡등록설계.md §3)
- * 썸네일은 videoId에서 파생(YoutubeArt), 제목·채널명은 oEmbed.
+ * 등록 전 미리보기 카드 — "이 곡 맞아요?" (docs/곡등록설계.md §3)
+ * 썸네일은 videoId에서 파생(YoutubeArt). 곡명·가수는 자동 추정값을 **편집 가능한 입력**으로 보여준다
+ * (제목 파싱·iTunes 보정이 틀려도 한 탭에 고칠 수 있게).
  */
-export function VideoPreview({ status, meta, errorText }: Props) {
+export function VideoPreview({
+  status,
+  videoId,
+  title,
+  artist,
+  onChangeTitle,
+  onChangeArtist,
+  titleError,
+  artistError,
+  errorText,
+}: Props) {
   if (status === 'idle') {
     return (
       <View style={[styles.box, styles.center]}>
@@ -44,15 +59,32 @@ export function VideoPreview({ status, meta, errorText }: Props) {
   }
 
   return (
-    <View style={styles.card} accessible accessibilityLabel={`선택된 곡: ${meta?.title}, ${meta?.artist}`}>
-      <YoutubeArt videoId={meta!.videoId} style={styles.art} />
+    <View style={styles.card}>
+      <YoutubeArt videoId={videoId!} style={styles.art} />
       <View style={styles.meta}>
-        <Text style={typography.bodyMedium} numberOfLines={2}>
-          {meta!.title}
-        </Text>
-        <Text style={typography.caption} numberOfLines={1}>
-          {meta!.artist}
-        </Text>
+        <Text style={[typography.caption, styles.fieldLabel]}>곡명</Text>
+        <TextInput
+          value={title}
+          onChangeText={onChangeTitle}
+          placeholder="곡 제목"
+          placeholderTextColor={colors.text40}
+          style={styles.input}
+          maxLength={FIELD_MAX}
+          accessibilityLabel="곡명 입력"
+        />
+        {!!titleError && <Text style={styles.fieldErr}>{titleError}</Text>}
+
+        <Text style={[typography.caption, styles.fieldLabel]}>가수</Text>
+        <TextInput
+          value={artist}
+          onChangeText={onChangeArtist}
+          placeholder="가수"
+          placeholderTextColor={colors.text40}
+          style={styles.input}
+          maxLength={FIELD_MAX}
+          accessibilityLabel="가수 입력"
+        />
+        {!!artistError && <Text style={styles.fieldErr}>{artistError}</Text>}
       </View>
     </View>
   );
@@ -75,4 +107,16 @@ const styles = StyleSheet.create({
   },
   art: { width: '100%', aspectRatio: aspect.thumbnail },
   meta: { gap: spacing.xs, padding: spacing.lg },
+  fieldLabel: { marginTop: spacing.sm },
+  fieldErr: { ...typography.caption, color: colors.danger },
+  input: {
+    backgroundColor: colors.white5,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: size.touch,
+    color: colors.text,
+    fontFamily: typography.body.fontFamily,
+    fontSize: typography.body.fontSize,
+  },
 });

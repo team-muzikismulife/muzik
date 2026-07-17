@@ -89,3 +89,71 @@ export async function fetchVideoMeta(videoId: string): Promise<VideoMeta> {
   const data = (await res.json()) as { title: string; author_name: string };
   return { videoId, title: data.title, author: data.author_name };
 }
+
+export interface ParsedMeta {
+  title: string;
+  artist: string;
+}
+
+/**
+ * 채널명을 가수명으로 다듬는다.
+ * 유튜브 자동생성 아티스트 채널("… - Topic"), VEVO, "… Official" 꼬리를 제거한다.
+ */
+function cleanAuthor(author: string): string {
+  return author
+    .replace(/\s*-\s*Topic$/i, '')
+    .replace(/VEVO$/i, '')
+    .replace(/\s*Official(?:\s+(?:Channel|Artist|Music))?$/i, '')
+    .trim();
+}
+
+/**
+ * 제목에서 홍보 접미사·괄호 노이즈를 제거한다.
+ * "(Official Music Video)", "[MV]", "(Lyrics)", "M/V", "(가사)" 등.
+ */
+function stripNoise(s: string): string {
+  return s
+    .replace(
+      /[([]\s*(?:official\s*)?(?:music\s*)?(?:video|audio|lyrics?|visualizer|m\/?v|가사|color\s*coded[^)\]]*)\s*[)\]]/gi,
+      '',
+    )
+    .replace(/\b(?:official\s+)?(?:music\s+video|m\/?v)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
+ * 유튜브 영상 제목/채널명을 "곡명 / 가수"로 최선 추정한다. (docs/곡등록설계.md)
+ * 100% 정확할 수 없다 — 이건 **편집 가능 필드의 초기값**일 뿐이고, 틀리면 사용자가 한 탭에 고친다.
+ * iTunes 보정(`src/lib/itunes.ts`)이 그 위에 한 번 더 다듬는다.
+ *
+ * 우선순위: ① 따옴표로 감싼 곡명("Artist 'Song' MV") → ② 구분자 분리("Artist - Song")
+ * → ③ 폴백(채널명을 가수로).
+ */
+export function parseTitle(rawTitle: string, author: string): ParsedMeta {
+  const fallbackArtist = cleanAuthor(author);
+  const raw = rawTitle.trim();
+
+  // ① 따옴표로 감싼 곡명은 강한 신호다 — 대부분의 K-pop MV 제목이 이 형태다.
+  const quoted = raw.match(/['"“”‘’「『]([^'"“”‘’」』]{1,80})['"“”‘’」』]/);
+  if (quoted) {
+    const title = stripNoise(quoted[1]);
+    // 따옴표 앞부분을 가수 후보로 — 괄호 안 원어 표기(뉴진스 등)는 걷어낸다.
+    const before = raw.slice(0, quoted.index).replace(/\([^)]*\)/g, '').trim();
+    if (title) return { title, artist: before || fallbackArtist };
+  }
+
+  // ② "Artist - Song" 구분자 분리 (-, –, —, |, ㅣ, _)
+  const cleaned = stripNoise(raw);
+  const parts = cleaned
+    .split(/\s+[-–—|ㅣ]\s+|\s+_\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length >= 2) {
+    const artist = parts[0].replace(/\([^)]*\)/g, '').trim() || parts[0];
+    return { artist, title: parts.slice(1).join(' - ') };
+  }
+
+  // ③ 폴백 — 구분자가 없으면 채널명을 가수로 쓴다.
+  return { title: cleaned || raw, artist: fallbackArtist };
+}

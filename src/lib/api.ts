@@ -1,4 +1,15 @@
-import { collection, doc, getDoc, runTransaction } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  runTransaction,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { avatarColor } from './avatar';
 import { todayKey } from './date';
@@ -196,4 +207,99 @@ export async function registerTrack({
       });
     }
   });
+}
+
+export interface UpdateTrackInput {
+  roomId: string;
+  videoId: string;
+  comment: string;
+  title: string;
+  artist: string;
+}
+
+/**
+ * 곡 수정 — 클라 트랜잭션. **당일 본인 곡만**(문서 ID가 `{uid}_{오늘}`이라 지난 날짜는 애초에 대상이 아님).
+ * videoId가 바뀌고 그 곡이 그날 커버였다면 `days.coverVideoId`도 따라가 댕글링을 막는다.
+ */
+export async function updateTrack({
+  roomId,
+  videoId,
+  comment,
+  title,
+  artist,
+}: UpdateTrackInput): Promise<void> {
+  const uid = requireUid();
+  const now = Date.now();
+  const dateKey = todayKey();
+
+  const trackRef = doc(db, 'rooms', roomId, 'tracks', `${uid}_${dateKey}`);
+  const dayRef = doc(db, 'rooms', roomId, 'days', dateKey);
+
+  await runTransaction(db, async (tx) => {
+    const [trackSnap, daySnap] = await Promise.all([tx.get(trackRef), tx.get(dayRef)]);
+    if (!trackSnap.exists()) throw coded('not-found'); // 오늘 곡이 없다 (수정 대상 없음)
+    const old = trackSnap.data() as Track;
+
+    // videoId·메타·코멘트만 갱신. uid·nickname·dateKey·order·createdAt은 보존한다.
+    tx.update(trackRef, { videoId, title, artist, comment, metaRefreshedAt: now });
+
+    const day = daySnap.exists() ? (daySnap.data() as { coverVideoId?: string }) : null;
+    if (day && day.coverVideoId === old.videoId && old.videoId !== videoId) {
+      tx.update(dayRef, { coverVideoId: videoId, updatedAt: now });
+    }
+  });
+}
+
+/**
+ * 곡 삭제 — 클라 트랜잭션. 당일 본인 곡만.
+ * trackCount-1, **0이 되면 days 문서를 삭제**(안 하면 빈 날짜 탭이 영원히 남는다).
+ * 삭제한 곡이 커버였고 남은 곡이 있으면 order 최소 곡으로 **커버 재지정**(트랜잭션 밖 쿼리 — tx는 쿼리 불가).
+ */
+export async function deleteTrack(roomId: string): Promise<void> {
+  const uid = requireUid();
+  const now = Date.now();
+  const dateKey = todayKey();
+
+  const trackRef = doc(db, 'rooms', roomId, 'tracks', `${uid}_${dateKey}`);
+  const dayRef = doc(db, 'rooms', roomId, 'days', dateKey);
+
+  let reassignCover = false;
+
+  await runTransaction(db, async (tx) => {
+    const [trackSnap, daySnap] = await Promise.all([tx.get(trackRef), tx.get(dayRef)]);
+    if (!trackSnap.exists()) throw coded('not-found');
+    const removed = trackSnap.data() as Track;
+    tx.delete(trackRef);
+
+    if (daySnap.exists()) {
+      const day = daySnap.data() as { trackCount?: number; coverVideoId?: string };
+      const count = (day.trackCount ?? 1) - 1;
+      if (count <= 0) {
+        tx.delete(dayRef); // 곡 0개 → 빈 날짜 탭이 남지 않게 집계 문서째 제거
+      } else {
+        tx.update(dayRef, { trackCount: count, updatedAt: now });
+        if (day.coverVideoId === removed.videoId) reassignCover = true;
+      }
+    }
+  });
+
+  // 커버였던 곡을 지웠으면 남은 곡 중 order 최소를 새 커버로 (트랜잭션 커밋 후이므로 삭제가 반영돼 있다).
+  // 삭제 자체는 이미 성공했으므로, 재지정 실패가 삭제 실패로 보이지 않게 조용히 넘긴다
+  // (실패해도 days.coverVideoId는 삭제된 videoId일 뿐 — 썸네일은 폴백 체인이 방어한다).
+  if (reassignCover) {
+    try {
+      const rest = await getDocs(
+        query(
+          collection(db, 'rooms', roomId, 'tracks'),
+          where('dateKey', '==', dateKey),
+          orderBy('order', 'asc'),
+          limit(1),
+        ),
+      );
+      const first = rest.docs[0]?.data() as Track | undefined;
+      if (first) await updateDoc(dayRef, { coverVideoId: first.videoId, updatedAt: Date.now() });
+    } catch {
+      // 커버 재지정 실패는 무시 (삭제는 이미 커밋됨)
+    }
+  }
 }

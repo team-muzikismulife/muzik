@@ -44,6 +44,10 @@ export const ERROR_CONTEXT = {
     'failed-precondition': '지난 날짜의 곡은 수정할 수 없어요.',
     'not-found': '이미 삭제된 곡이에요.',
   },
+  deleteTrack: {
+    'not-found': '이미 삭제된 곡이에요.',
+    'permission-denied': '내 곡만 삭제할 수 있어요.',
+  },
   createRoom: {
     'resource-exhausted': '초대 코드를 만들지 못했어요. 잠시 후 다시 시도해 주세요.',
   },

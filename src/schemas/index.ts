@@ -37,6 +37,13 @@ export const InviteCodeSchema = z
 /** 코멘트 — 30자 이하 (구현계획서.md §2) */
 export const CommentSchema = z.string().trim().max(30, '코멘트는 30자까지예요');
 
+/**
+ * 곡명·가수 — 등록 폼에서 **사용자가 편집 가능**하다(oEmbed/iTunes 초기값을 고칠 수 있음).
+ * 편집 가능 = 신뢰할 수 없는 입력 → 길이 검증 대상. (docs/곡등록설계.md)
+ */
+export const TitleSchema = z.string().trim().min(1, '곡 제목을 입력해 주세요').max(80, '제목은 80자까지예요');
+export const ArtistSchema = z.string().trim().min(1, '가수를 입력해 주세요').max(80, '가수는 80자까지예요');
+
 /** 유튜브 videoId — 11자 */
 export const VideoIdSchema = z
   .string()
@@ -60,6 +67,10 @@ export const RegisterTrackInput = z.object({
   roomId: z.string().min(1),
   videoId: VideoIdSchema,
   comment: CommentSchema,
+  // 편집 가능한 메타 — 클라가 다듬어 보내고 서버(정본)·rules가 재검증 대상으로 삼는다.
+  title: TitleSchema,
+  artist: ArtistSchema,
+  nickname: NicknameSchema,
 });
 
 export type CreateRoomInput = z.infer<typeof CreateRoomInput>;
