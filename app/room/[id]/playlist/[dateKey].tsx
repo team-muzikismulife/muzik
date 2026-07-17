@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Linking, Share, Text, View, StyleSheet } from 'react-native';
+import { FlatList, Linking, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +12,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { Avatar } from '@/components/Avatar';
 import { YoutubeArt } from '@/components/YoutubeArt';
 import { buildWatchVideosUrl } from '@/lib/youtube';
+import { shareInvite } from '@/lib/invite';
 import { themeFor } from '@/lib/themes';
 import { useRoomStore } from '@/store/room';
 import { useConfigStore } from '@/store/config';
@@ -90,16 +91,15 @@ export default function PlaylistDetail() {
     setPlaying(true);
   };
 
-  /** 초대 코드 공유 — 딥링크+6자 코드 병기 (백엔드설계.md §7) */
-  const share = () => {
+  /** 초대 공유 — 6자 코드 + (웹에서 열리는) https 링크 (src/lib/invite.ts) */
+  const share = async () => {
     const code = room?.inviteCode;
     if (!code) {
       toast('초대 코드를 불러오는 중이에요');
       return;
     }
-    Share.share({
-      message: `[MUZIK] 팀 "${room?.name ?? ''}"에 초대합니다.\n초대 코드: ${code}\nmuzik://r/${code}`,
-    });
+    const result = await shareInvite(room?.name ?? '', code);
+    if (result === 'copied') toast('초대 내용을 복사했어요');
   };
 
   const backBar = (

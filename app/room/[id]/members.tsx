@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { FlatList, Share, Text, View, StyleSheet } from 'react-native';
+import { FlatList, Text, View, StyleSheet } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, radius, size, spacing, typography } from '@/theme/tokens';
@@ -9,6 +9,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { IconButton } from '@/components/Icon';
 import { Avatar } from '@/components/Avatar';
 import { todayKey } from '@/lib/date';
+import { inviteUrl, shareInvite } from '@/lib/invite';
 import { useRoomStore } from '@/store/room';
 import { toast } from '@/store/ui';
 import type { Member } from '@/types/models';
@@ -33,19 +34,24 @@ export default function Members() {
 
   const code = room?.inviteCode ?? '';
   const teamName = room?.name ?? '';
+  const url = code ? inviteUrl(code) : null;
 
-  const copy = async () => {
+  const copyCode = async () => {
     if (!code) return;
     await Clipboard.setStringAsync(code);
     toast('초대 코드를 복사했어요');
   };
 
-  const share = () => {
+  const copyLink = async () => {
+    if (!url) return;
+    await Clipboard.setStringAsync(url);
+    toast('초대 링크를 복사했어요');
+  };
+
+  const share = async () => {
     if (!code) return;
-    // 딥링크와 6자 코드를 반드시 병기한다 — muzik://는 Expo Go에서 안 열린다 (백엔드설계.md §7)
-    Share.share({
-      message: `[MUZIK] 팀 "${teamName}"에 초대합니다.\n초대 코드: ${code}\nmuzik://r/${code}`,
-    });
+    const result = await shareInvite(teamName, code);
+    if (result === 'copied') toast('초대 내용을 복사했어요'); // 공유 시트가 없는 환경(데스크톱 웹)
   };
 
   const posted = (uid: string) => tracks.some((t) => t.uid === uid);
@@ -66,7 +72,7 @@ export default function Members() {
         ListHeaderComponent={
           <View style={styles.invite}>
             <Text style={[typography.caption, styles.help]}>
-              이 코드를 팀원에게 보내면 함께할 수 있어요.
+              코드를 불러주거나, 초대 링크를 보내면 함께할 수 있어요.
             </Text>
 
             <View style={styles.codeBox}>
@@ -78,22 +84,44 @@ export default function Members() {
               </Text>
             </View>
 
+            {/* 초대 링크 — 브라우저에서 바로 열리는 https 주소 (muzik:// 딥링크는 웹에서 안 열린다) */}
+            {!!url && (
+              <Text
+                style={[typography.tab, styles.link]}
+                numberOfLines={1}
+                selectable
+                accessibilityLabel={`초대 링크 ${url}`}
+              >
+                {url}
+              </Text>
+            )}
+
             <View style={styles.row}>
               <PressableScale
                 style={[styles.btn, styles.btnGhost]}
-                onPress={copy}
+                onPress={copyCode}
                 disabled={!code}
                 accessibilityRole="button"
                 accessibilityLabel="초대 코드 복사"
               >
-                <Text style={typography.bodyMedium}>복사</Text>
+                <Text style={typography.bodyMedium}>코드 복사</Text>
               </PressableScale>
+              {!!url && (
+                <PressableScale
+                  style={[styles.btn, styles.btnGhost]}
+                  onPress={copyLink}
+                  accessibilityRole="button"
+                  accessibilityLabel="초대 링크 복사"
+                >
+                  <Text style={typography.bodyMedium}>링크 복사</Text>
+                </PressableScale>
+              )}
               <PressableScale
                 style={[styles.btn, styles.btnGhost]}
                 onPress={share}
                 disabled={!code}
                 accessibilityRole="button"
-                accessibilityLabel="초대 코드 공유"
+                accessibilityLabel="초대 공유"
               >
                 <Text style={typography.bodyMedium}>공유</Text>
               </PressableScale>
@@ -152,7 +180,8 @@ const styles = StyleSheet.create({
     borderColor: colors.white20,
   },
   code: { ...typography.heroTitle, letterSpacing: 6 },
-  row: { flexDirection: 'row', gap: spacing.md },
+  link: { color: colors.text60, textAlign: 'center' },
+  row: { flexDirection: 'row', gap: spacing.sm },
   btn: {
     flex: 1,
     minHeight: size.touch,

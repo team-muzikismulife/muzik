@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Share,
   Text,
   TextInput,
   View,
@@ -16,6 +15,7 @@ import { Screen } from '@/components/Screen';
 import { PressableScale } from '@/components/PressableScale';
 import { IconButton } from '@/components/Icon';
 import { createRoom } from '@/lib/api';
+import { shareInvite } from '@/lib/invite';
 import { toMessage } from '@/lib/errors';
 import { fieldError, NicknameSchema, RoomNameSchema } from '@/schemas';
 import { useSessionStore } from '@/store/session';
@@ -102,14 +102,13 @@ export default function CreateRoom() {
 
             <PressableScale
               style={[styles.btn, styles.btnGhost]}
-              onPress={() =>
-                // 딥링크와 6자 코드를 반드시 병기한다 — muzik://는 Expo Go에서 안 열린다 (백엔드설계.md §7)
-                Share.share({
-                  message: `[MUZIK] 팀 "${name}"에 초대합니다.\n초대 코드: ${created.inviteCode}\nmuzik://r/${created.inviteCode}`,
-                })
-              }
+              onPress={async () => {
+                // 코드 + (웹에서 열리는) https 초대 링크를 함께 보낸다 — src/lib/invite.ts
+                const result = await shareInvite(name, created.inviteCode);
+                if (result === 'copied') toast('초대 내용을 복사했어요');
+              }}
               accessibilityRole="button"
-              accessibilityLabel="초대 코드 공유"
+              accessibilityLabel="초대 공유"
             >
               <Text style={typography.bodyMedium}>공유</Text>
             </PressableScale>
