@@ -36,7 +36,11 @@ service cloud.firestore {
     }
 
     match /rooms/{roomId} {
-      allow read: if isMember(roomId);
+      // get: 입장 전에도 방을 읽어야 한다(joinRoom 트랜잭션이 memberCount 확인). roomId는 추측 불가한
+      //      랜덤 20자이고 list는 막혀 있어 열거 불가 — roomId를 알려면 이미 멤버이거나 초대코드 보유자다.
+      // list: 방 목록 열거는 멤버만(사실상 미사용이지만 방어적으로 닫아둔다).
+      allow get:  if isSignedIn();
+      allow list: if isMember(roomId);
 
       // 개설: 본인이 방장, 멤버수 1로 시작, 이름 길이 제한
       allow create: if isSignedIn()
@@ -54,7 +58,10 @@ service cloud.firestore {
 
       // ── 멤버 ──
       match /members/{uid} {
-        allow read: if isMember(roomId);
+        // get: 입장 시 joinRoom이 본인 멤버 문서를 읽어 멱등(재입장) 여부를 판단한다 — 아직 멤버가
+        //      아니어도 **본인 문서**는 읽게 허용. list(팀원 목록)는 멤버만.
+        allow get:  if isSignedIn() && (isMember(roomId) || uid == myUid());
+        allow list: if isMember(roomId);
         // 본인 문서만. 개설·입장의 진입점이라 isMember를 요구하지 않는다.
         allow create, update: if isSignedIn()
           && uid == myUid()
