@@ -134,23 +134,28 @@ rooms/{roomId}                                방
 
 ## 6. 알려진 정합성 이슈 (구현 시 주의)
 
-> v2 ERD 리뷰(2026-07-14)에서 도출. 대부분 **비정규화된 파생/집계 필드**에서 발생 — `thumbnailUrl`을 없애며 경계한 바로 그 부류다. registerTrack·joinRoom·deleteTrack를 트랜잭션으로 짤 때 함께 반영할 것.
+> v2 ERD 리뷰(2026-07-14)에서 도출, 2026-07-17 코드 대조로 갱신(이슈 #29).
+> 대부분 **비정규화된 파생/집계 필드**에서 발생 — `thumbnailUrl`을 없애며 경계한 바로 그 부류다.
+> registerTrack·deleteTrack를 트랜잭션으로 짤 때 함께 반영할 것.
+>
+> **이 목록은 코드와 대조해서 유지한다.** 해결된 항목을 "구현 전 확정"에 남겨두면 진짜 미해결이 묻힌다.
 
 ### 🔴 구현 전 확정 (카운터/집계 정합성)
+
+둘 다 **M2 `registerTrack`/`deleteTrack`에서 처음 코드가 되는 지점**이라 아직 미해결이다.
 
 | # | 이슈 | 대응 |
 |---|---|---|
 | V1 | **`deleteTrack`가 `coverVideoId`를 유지 안 함** — 대표(첫) 곡을 지우고 다른 곡이 남으면 `coverVideoId`가 사라진 videoId를 계속 가리켜 대표 썸네일이 깨짐 | 삭제 대상 == `coverVideoId`면 남은 최소 `order` 트랙으로 재계산 |
 | V2 | **`days` 집계 원자성** — `tracks` 쓰기와 `trackCount` 증감이 한 트랜잭션이 아니면 드리프트 → "trackCount 0이면 day 삭제" 로직이 곡 남은 날을 증발시키거나 빈 날짜 탭을 남김 | track 쓰기 + day 집계를 **하나의 Firestore 트랜잭션**으로 |
-| V3 | **`joinRoom`의 `memberCount` 멱등성 결여** — 같은 uid 재입장 시 `members.set`은 멱등이나 `memberCount++`는 매번 증가 → 실제 인원보다 먼저 30 캡에 걸림 | 트랜잭션 안에서 **member 문서가 없던 경우에만** 증가. `members`가 진실, `memberCount`는 캐시 |
 
 ### 🟠 자기모순 / 정책
 
 | # | 이슈 | 대응 |
 |---|---|---|
-| V4 | **`photoColor` 저장 + 클라 파생 중복** — 닉네임 해시로 결정론적 파생 가능한데 저장까지 함. 재입장으로 닉네임 바뀌면 어긋남 | 저장 대신 닉네임에서 파생(권장) 또는 클라 파생 제거하고 서버 값만 신뢰 |
 | V5 | **`refreshMeta` 열람-lazy → 안 본 날은 30일 갱신 정책 미준수** ([유튜브연동설계 §6](유튜브연동설계.md) 준수 주장과 상충) | 스케줄드 스윕(Cloud Scheduler) 추가 or "미준수 감수" 명시 |
 | V6 | **초대코드 2중 저장**(`rooms.inviteCode` + `invites` 키) + 회전/만료 경로 부재 | 회전 불필요면 명시, 필요하면 트랜잭션 경로 설계 |
+| V11 | **재입장이 닉네임을 갱신하는데 `tracks.nickname`은 스냅샷** — `joinRoom`이 재입장 시 닉네임·photoColor를 갱신하지만 과거 트랙은 옛 이름을 유지 → 같은 사람이 한 화면에 두 이름으로 보인다 | 스냅샷을 유지하되 표시 규칙을 정할 것(과거는 당시 이름이 맞다면 "의도된 동작"으로 명시) |
 
 ### 🟡 시맨틱 / 경미
 
@@ -158,6 +163,16 @@ rooms/{roomId}                                방
 - **V8** `order = 서버 epoch(ms)` — 동일 ms 동값(희박), delete 후 재등록 시 순서 맨 뒤로 이동.
 - **V9** 핸드오프 50곡 ↔ 멤버 30캡 암묵 결합 — 캡을 50 초과로 올리면 `watch_videos`가 깨짐. 불변식을 상수로 못박기.
 - **V10** 스키마 3중 존재(백엔드설계 §2 · `models.ts` · ERD.md) — `models.ts`를 유일 정본으로, 문서는 포인터만.
+- **V12** `order`와 `createdAt`이 **항상 같은 값** — 둘 다 `registerTrack`의 서버 epoch이고 `updateTrack`은 order를 안 건드린다. 갈라질 수 없는 두 필드를 나눠두면 "갈라질 수 있다"는 오해를 부른다. 하나는 인덱스까지 있다.
+- **V13** "하루 1곡 물리적 강제"는 정확히는 **동시 1곡** — `deleteTrack`(본인+당일) → `registerTrack` 재호출이 무제한이다. 의도된 동작이라면 문구를 고칠 것.
+- **V14** `avatarColor`가 `nickname.codePointAt(0) % 5` — 첫 글자만 봐서 "철수"/"철민"이 같은 색. 30명 캡에 5색이면 어차피 비둘기집이라, "시각 구분"이라는 근거가 실제보다 강하다.
+
+### ✅ 해결됨 (2026-07-17 코드 대조)
+
+| # | 이슈 | 해결 |
+|---|---|---|
+| V3 | `joinRoom`의 `memberCount` 멱등성 | [`functions/src/joinRoom.ts`](../functions/src/joinRoom.ts) — 트랜잭션 안에서 member 문서 존재 여부로 분기, 이미 멤버면 닉네임만 갱신하고 카운트는 그대로 |
+| V4 | `photoColor` 저장 + 클라 파생 중복 | [`src/lib/avatar.ts`](../src/lib/avatar.ts)를 Functions와 공유(`functions/tsconfig.json`) → 서버가 닉네임에서 확정. 저장 자체는 남지만 규칙이 하나라 어긋나지 않는다. 파생 품질은 V14 참고 |
 
 ---
 
