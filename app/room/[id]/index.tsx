@@ -11,6 +11,7 @@ import { DateTabs } from '@/components/DateTabs';
 import { MissionBanner } from '@/components/MissionBanner';
 import { TrackCard, AddTrackCard } from '@/components/TrackCard';
 import { todayKey } from '@/lib/date';
+import { useDateKey } from '@/hooks/useDateKey';
 import { missionFor } from '@/lib/themes';
 import type { Day, Track } from '@/types/models';
 
@@ -110,7 +111,9 @@ export default function RoomHome() {
   // TODO(M2): room store의 구독 상태로 교체
   const [status, setStatus] = useState<Status>('ready');
 
-  const today = todayKey();
+  // 새벽 4시를 넘기면 스스로 바뀐다 — 앱을 켜둔 채 마감을 넘겨도 어제에 머물지 않는다.
+  // TODO(M2): 이 값이 바뀌면 tracks 구독도 새 dateKey로 재구독해야 한다.
+  const today = useDateKey();
   const dateKeys = recentDateKeys();
   const tracks = status === 'empty' ? [] : MOCK_TRACKS;
   // TODO(M2): days/{today} 구독으로 교체. 곡 0개면 문서가 없어 null이 정상이다 —

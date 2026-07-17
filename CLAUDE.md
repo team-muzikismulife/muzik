@@ -46,7 +46,10 @@ assets/fonts/           # Pretendard Regular/Medium/SemiBold (Figma 전 구간�
 src/theme/tokens.ts     # Figma 디자인 토큰 (colors, typography, spacing, radius, size, aspect, shadow, hitSlop …)
 src/components/         # 도메인: Avatar, MissionBanner, TrackCard(+AddTrackCard), TeamCard, DateTabs, Thumbnail
                         # 공통: Screen, StateView, Skeleton, Icon(+IconButton), PressableScale, Toast
+src/hooks/              # React 훅. useDateKey(새벽 4시 롤오버) — lib/과 분리한 건 lib 일부가 Functions와 공유되기 때문
 src/lib/                # date(dateKey·컷오프), youtube(파싱·oEmbed·핸드오프URL), themes, firebase, errors
+                        # ⚠️ date·themes·avatar·tokens·schemas·models는 Functions도 컴파일한다 (functions/tsconfig.json).
+                        #    여기에 React/RN을 import하면 서버 빌드가 깨진다.
 src/schemas/            # zod — 클라이언트/Functions 공용 검증 계약
 src/store/              # zustand — ui(토스트). (예정) session, room
 src/types/models.ts     # Room, Member, Track, DailyTheme
