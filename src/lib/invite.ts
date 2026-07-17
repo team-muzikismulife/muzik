@@ -10,14 +10,27 @@ import * as Clipboard from 'expo-clipboard';
  *   ② 링크를 못 만드는 환경이면 **6자리 코드**만으로도 입장할 수 있게(`/room/join` 입력 화면) 항상 코드를 병기한다.
  */
 
-/** 초대 URL — 웹은 현재 origin, 네이티브는 EXPO_PUBLIC_WEB_URL. 둘 다 없으면 null(코드만 공유) */
+/** 남에게 보낼 수 없는 주소 — 개발 중 origin을 초대 링크로 내보내면 받는 쪽에서 안 열린다 */
+function isLocalOrigin(origin: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|10\.|192\.168\.|\[::1\])/i.test(origin);
+}
+
+/**
+ * 초대 URL. 우선순위:
+ *   ① `EXPO_PUBLIC_WEB_URL` (배포된 공개 도메인) — **플랫폼 무관 최우선**.
+ *      네이티브(Expo Go)엔 origin이 아예 없고, 웹도 로컬에서 열면 origin이 localhost라 공유가 불가능하다.
+ *   ② 웹 origin — 단 localhost·사설 IP면 제외(공유해도 못 여는 주소).
+ *   ③ 없으면 null → 코드만 공유한다(`/room/join` 코드 입력으로 입장 가능).
+ */
 export function inviteUrl(code: string): string | null {
+  const base = process.env.EXPO_PUBLIC_WEB_URL?.trim();
+  if (base) return `${base.replace(/\/+$/, '')}/r/${code}`;
+
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/r/${code}`;
+    const origin = window.location.origin;
+    if (!isLocalOrigin(origin)) return `${origin}/r/${code}`;
   }
-  // 네이티브는 origin이 없다 — 배포된 웹 도메인을 환경변수로 받아 링크를 만든다
-  const base = process.env.EXPO_PUBLIC_WEB_URL;
-  return base ? `${base.replace(/\/+$/, '')}/r/${code}` : null;
+  return null;
 }
 
 /** 공유·복사에 쓰는 초대 문구. 코드는 **항상** 포함한다(링크가 죽어도 코드로 입장 가능) */

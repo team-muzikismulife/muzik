@@ -87,15 +87,15 @@ export default function Onboarding() {
           // Figma: 팀 목록 바로 아래 (gap 32) — 화면 하단에 밀어두지 않는다
           ListFooterComponent={
             <View style={styles.footer}>
-              {/* 코드 입력이 실질적 기본 입장 경로 — 링크가 웹·Expo Go에서 안 열린다 */}
+              {/* 초대 코드로 참가 — 링크보다 확실한 기본 입장 경로 */}
               <PressableScale
                 style={styles.joinBtn}
                 onPress={() => router.push('/room/join')}
                 accessibilityRole="button"
-                accessibilityLabel="코드로 입장하기"
+                accessibilityLabel="팀 참가하기"
               >
                 <Icon name="arrowRight" size={size.icon} color={colors.text} />
-                <Text style={typography.bodyMedium}>코드로 입장하기</Text>
+                <Text style={typography.bodyMedium}>팀 참가하기</Text>
               </PressableScale>
 
               <PressableScale

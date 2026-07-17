@@ -69,7 +69,7 @@ export default function JoinRoom() {
             accessibilityLabel="닫기"
             onPress={() => router.back()}
           />
-          <Text style={typography.title}>코드로 입장하기</Text>
+          <Text style={typography.title}>팀 참가하기</Text>
         </View>
 
         <View style={styles.body}>
