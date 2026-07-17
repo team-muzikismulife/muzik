@@ -1,5 +1,5 @@
 > ⚠️ **SUPERSEDED (구버전).** 이 가이드는 클라이언트가 Firestore에 직접 쓰던 모델(트랙ID=UID, 자정 마감) 기준이다.
-> v2는 **쓰기 전부 Cloud Functions 경유·읽기 전용 Rules, 트랙ID=`{uid}_{dateKey}`, 새벽 4시 마감**으로 변경됨.
+> v2는 **쓰기 전부 Cloud Functions 경유·읽기 전용 Rules, 트랙ID=`{uid}_{dateKey}`, 자정 마감**으로 변경됨.
 > 정본: [백엔드설계.md](백엔드설계.md)(§4 Rules 초안 포함) · [ERD.md](ERD.md).
 
 # Firebase 가이드 (Firestore 규칙 · 배포 · 테스트)

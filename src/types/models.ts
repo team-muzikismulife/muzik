@@ -33,7 +33,7 @@ export interface Track {
   comment: string; // ≤ 30자
   uid: string;
   nickname: string;
-  dateKey: string; // 'YYYY-MM-DD' (KST, 새벽 4시 컷)
+  dateKey: string; // 'YYYY-MM-DD' (KST, 자정 컷)
   order: number; // 서버 epoch — 재생 순서
   createdAt: number;
   /** videos.list 검증 결과 — false면 인앱 미리듣기에서 스킵하고 "유튜브 전용" 배지 */

@@ -24,7 +24,7 @@ React Native (Expo SDK 53, expo-router) + Firebase (Anonymous Auth, Firestore, C
 
 ## 핵심 설계 결정 (요약 — 상세는 docs/)
 
-1. **새벽 4시(KST) 마감**: `dateKey` = (현재시각 −4h)의 KST 날짜. `src/lib/date.ts`. 등록 시 dateKey는 Functions 서버 시각으로 확정.
+1. **자정(24시, KST) 마감**: `dateKey` = KST 달력 날짜. `src/lib/date.ts` `DAY_CUTOFF_HOUR`(현재 0). 등록 시 dateKey는 Functions 서버 시각으로 확정. (2026-07-17: 새벽 4시 → 자정으로 변경.)
 2. **하루 1곡**: tracks 문서 ID `{uid}_{dateKey}` + create-only.
 3. **쓰기는 전부 Cloud Functions 경유**, 클라이언트는 Firestore 읽기 전용.
 4. **재생 = 유튜브 핸드오프**: `watch_videos?video_ids=` URL로 유튜브 앱에서 연속 재생. 인앱 IFrame은 '미리듣기' 보조. 킬스위치: `config/app.handoffMode`.

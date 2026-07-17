@@ -49,7 +49,7 @@ export const VideoIdSchema = z
   .string()
   .regex(/^[\w-]{11}$/, '유튜브 링크가 아닌 것 같아요');
 
-/** dateKey — 'YYYY-MM-DD' (KST, 새벽 4시 컷) */
+/** dateKey — 'YYYY-MM-DD' (KST, 자정 컷) */
 export const DateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 올바르지 않아요');
 
 /** Cloud Functions 입력 계약 */

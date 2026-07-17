@@ -94,7 +94,7 @@ rooms/{roomId}                                방
 |---|---|
 | **쓰기는 전부 Cloud Functions 경유, 클라는 읽기 전용** | 하루 1곡·서버 dateKey·코드 유일성 등 핵심 규칙을 클라가 우회 못 하게 하는 가장 단순한 방법. Security Rules는 "읽기 권한"에만 집중. |
 | **트랙 ID = `{uid}_{dateKey}` + create-only** | (방·날짜·사용자)당 문서 1개만 가능 → **하루 1곡을 물리적으로 강제**. 재등록은 `already-exists`. |
-| **`dateKey`는 서버 시각으로 확정 (새벽 4시 컷)** | `dateKey = (now − 4h)`의 KST 날짜. 밤샘 감상 패턴 존중 + 클라 시계 조작 방지. 롤오버는 배치 없이 쿼리 시프트 하나. |
+| **`dateKey`는 서버 시각으로 확정 (자정 컷)** | `dateKey` = KST 달력 날짜(`DAY_CUTOFF_HOUR=0`). 클라 시계 조작 방지. 롤오버는 배치 없이 쿼리 시프트 하나. |
 | **`order` = 서버 epoch** | 재생 정렬키를 서버가 부여 → 클라가 순서를 위조할 수 없음. 인덱스: tracks `dateKey ASC + order ASC`. |
 | **초대코드 = 6자리 + `invites/{code}` 역참조** | Firestore는 필드 unique 제약이 없음 → `invites/{code}` 문서 **트랜잭션 create**로 유일성 확보(충돌 시 재생성). 공유 텍스트에 코드 병기·딥링크 없이 베타 가능. 32⁶≈10억 조합. |
 | **`days` 집계 문서** | Firestore는 "tracks에 존재하는 dateKey 목록"을 distinct로 못 뽑음 → 첫 곡 등록 시 Functions가 days를 만들어 날짜 탭·과거 목록·대표 썸네일을 쿼리 1번으로 해결. |
