@@ -14,8 +14,8 @@ import { useTeamsStore } from '@/store/teams';
 /**
  * 온보딩 / 참여 중인 팀 (Figma 107:1126 "OnBoarding")
  *
- * 입장은 초대 링크(`/r/{code}`)로만 한다 — 이 화면에 코드 입력란을 두지 않는다(시안대로).
- * TODO(M1): joinRoom + 초대 코드 입력 화면 분리 (후속 이슈)
+ * 입장 경로 둘: 초대 링크(`/r/{code}`) + **코드 직접 입력(`/room/join`)**.
+ * 딥링크가 웹·Expo Go에서 안 열리므로 코드 입력이 실질적 기본 입장 경로다.
  */
 
 // Figma: 카드 간 16, 목록과 개설 버튼 사이 32
@@ -68,11 +68,11 @@ export default function Onboarding() {
                 onAction={() => uid && loadTeams(uid)}
               />
             ) : (
-              // 신규 사용자가 가장 먼저 보는 화면이다 — 다음 행동(개설)으로 이어줘야 한다
+              // 신규 사용자가 가장 먼저 보는 화면이다 — 다음 행동(개설·입장)으로 이어줘야 한다
               <StateView
                 status="empty"
                 title="참여 중인 팀이 없어요"
-                message="팀을 만들거나, 받은 초대 링크로 들어와 보세요."
+                message="팀을 만들거나, 받은 코드로 입장해 보세요."
               />
             )
           }
@@ -86,15 +86,28 @@ export default function Onboarding() {
           )}
           // Figma: 팀 목록 바로 아래 (gap 32) — 화면 하단에 밀어두지 않는다
           ListFooterComponent={
-            <PressableScale
-              style={styles.createBtn}
-              onPress={() => router.push('/room/create')}
-              accessibilityRole="button"
-              accessibilityLabel="새로운 팀 개설하기"
-            >
-              <Icon name="plus" size={size.icon} color={colors.text} />
-              <Text style={typography.bodyMedium}>새로운 팀 개설하기</Text>
-            </PressableScale>
+            <View style={styles.footer}>
+              {/* 코드 입력이 실질적 기본 입장 경로 — 링크가 웹·Expo Go에서 안 열린다 */}
+              <PressableScale
+                style={styles.joinBtn}
+                onPress={() => router.push('/room/join')}
+                accessibilityRole="button"
+                accessibilityLabel="코드로 입장하기"
+              >
+                <Icon name="arrowRight" size={size.icon} color={colors.text} />
+                <Text style={typography.bodyMedium}>코드로 입장하기</Text>
+              </PressableScale>
+
+              <PressableScale
+                style={styles.createBtn}
+                onPress={() => router.push('/room/create')}
+                accessibilityRole="button"
+                accessibilityLabel="새로운 팀 개설하기"
+              >
+                <Icon name="plus" size={size.icon} color={colors.text} />
+                <Text style={typography.bodyMedium}>새로운 팀 개설하기</Text>
+              </PressableScale>
+            </View>
           }
         />
       </View>
@@ -114,12 +127,24 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   body: { flex: 1, gap: spacing.xxl, padding: spacing.xxl },
+  footer: { gap: spacing.md, marginTop: spacing.lg },
+  joinBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    minHeight: size.touch,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.white10,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.white60,
+  },
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    marginTop: spacing.lg,
     minHeight: size.touch,
     paddingVertical: spacing.md,
     backgroundColor: colors.white3,

@@ -12,7 +12,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Member, Room, Track } from '@/types/models';
+import type { Day, Member, Room, Track } from '@/types/models';
 
 /**
  * 실시간 구독 (docs/frontend.md § Data Fetching)
@@ -59,6 +59,42 @@ export function subscribeTracks(
       orderBy('order', 'asc'),
     ),
     (snap) => next(snap.docs.map((d) => d.data() as Track)),
+    error,
+  );
+}
+
+/**
+ * 곡이 있는 날짜 목록 구독 — `days` 컬렉션 (날짜 탭용).
+ * Firestore가 distinct를 못 하므로 등록 시 집계해 둔 days 문서로 "곡이 있는 날짜"를 얻는다.
+ * 최근 14일치만 — 문서 ID(=dateKey) 내림차순.
+ */
+export function subscribeDays(
+  roomId: string,
+  next: (days: Day[]) => void,
+  error: (e: unknown) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'rooms', roomId, 'days'), orderBy('dateKey', 'desc'), limit(14)),
+    (snap) => next(snap.docs.map((d) => d.data() as Day)),
+    error,
+  );
+}
+
+/**
+ * 킬스위치 구독 — `config/app.handoffMode` (유튜브연동설계 §3-3).
+ * 유튜브가 watch_videos를 막으면 **배포 없이** 이 문서만 바꿔 첫 곡 재생으로 전환한다.
+ * 문서·권한이 없으면 안전 기본값('watch_videos', 전체 핸드오프)으로 폴백한다.
+ */
+export function subscribeConfig(
+  next: (mode: 'watch_videos' | 'first_video') => void,
+  error: (e: unknown) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'config', 'app'),
+    (snap) => {
+      const mode = snap.exists() ? (snap.data() as { handoffMode?: string }).handoffMode : undefined;
+      next(mode === 'first_video' ? 'first_video' : 'watch_videos');
+    },
     error,
   );
 }

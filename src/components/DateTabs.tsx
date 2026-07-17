@@ -18,7 +18,7 @@ export function tabLabel(dateKey: string): string {
 
 /**
  * 날짜 탭 (Figma 1:1773) — 좌우 chevron + 가로 스크롤 탭
- * TODO(M4): days 컬렉션(문서ID desc limit 14) 구독으로 교체 — 곡이 있는 날짜만 뜬다
+ * dateKeys는 홈이 days 구독(곡이 있는 날짜) + 오늘로 구성해 넘긴다 (M4).
  */
 export function DateTabs({ dateKeys, selected, onSelect }: Props) {
   return (

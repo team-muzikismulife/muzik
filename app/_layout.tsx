@@ -11,6 +11,7 @@ import { Toast } from '@/components/Toast';
 import { Screen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
 import { useSessionStore } from '@/store/session';
+import { useConfigStore } from '@/store/config';
 
 // 폰트 로딩 전에 스플래시가 사라지면 시스템 폰트로 한 프레임 깜빡인다
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -56,6 +57,10 @@ export default function RootLayout() {
 
   useEffect(() => bootstrap(), [bootstrap]);
 
+  // 킬스위치 — 앱 시작 시 1회 구독. 안전 기본값이 있어 스플래시를 막지 않는다 (유튜브연동설계 §3-3).
+  const subscribeConfig = useConfigStore((s) => s.subscribe);
+  useEffect(() => subscribeConfig(), [subscribeConfig]);
+
   const ready = (fontsLoaded || fontError) && authStatus !== 'loading';
 
   useEffect(() => {
@@ -68,7 +73,7 @@ export default function RootLayout() {
   // 인증 실패는 흰 화면이 아니라 다음 행동이 있는 화면으로 (docs/frontend.md § Error Handling)
   if (authStatus === 'error') {
     return (
-      <SafeAreaProvider>
+      <SafeAreaProvider style={styles.appRoot}>
         <StatusBar style="light" />
         <Screen>
           <StateView
@@ -84,7 +89,7 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={styles.appRoot}>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -97,7 +102,9 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         {/* 모달은 라우트로 표현한다 — 뒤로가기·상태복원이 공짜로 따라온다 (frontend.md) */}
         <Stack.Screen name="room/create" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="room/join" options={{ presentation: 'modal' }} />
         <Stack.Screen name="room/[id]/index" />
+        <Stack.Screen name="room/[id]/members" options={{ presentation: 'modal' }} />
         <Stack.Screen name="room/[id]/track/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="room/[id]/playlist/[dateKey]" />
         <Stack.Screen name="r/[code]" />
@@ -109,6 +116,8 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  // 웹 데스크톱에서 가운데 컬럼 바깥 여백을 앱 배경색으로 (Screen이 폭을 제한한다)
+  appRoot: { flex: 1, backgroundColor: colors.bg },
   fallback: {
     flex: 1,
     alignItems: 'center',

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FlatList, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, hitSlop, radius, size, spacing, typography } from '@/theme/tokens';
@@ -22,17 +22,6 @@ import type { Member, Track } from '@/types/models';
  *
  * 카드는 팀원 수만큼 나열한다 — 미등록 팀원도 자리를 차지해 "누가 안 올렸는지"가 보인다.
  */
-const DAY_MS = 86_400_000;
-const TAB_COUNT = 7;
-
-/** 날짜 탭 — 라벨과 이동 대상 dateKey가 일치해야 한다. TODO(M4): days 구독으로 교체 */
-function recentDateKeys(): string[] {
-  const now = Date.now();
-  return Array.from({ length: TAB_COUNT }, (_, i) =>
-    todayKey(new Date(now - (TAB_COUNT - 1 - i) * DAY_MS)),
-  );
-}
-
 interface Row {
   member: Member;
   track: Track | null;
@@ -52,12 +41,18 @@ export default function RoomHome() {
   const room = useRoomStore((s) => s.room);
   const members = useRoomStore((s) => s.members);
   const tracks = useRoomStore((s) => s.tracks);
+  const days = useRoomStore((s) => s.days);
   const status = useRoomStore((s) => s.status);
   const error = useRoomStore((s) => s.error);
   const subscribe = useRoomStore((s) => s.subscribe);
 
   const today = todayKey();
-  const dateKeys = recentDateKeys();
+  // 날짜 탭 = 곡이 있는 날짜(days) + 오늘(아직 곡이 없어도 현재 화면이므로 항상 포함), 오름차순
+  const dateKeys = useMemo(() => {
+    const set = new Set(days.map((d) => d.dateKey));
+    set.add(today);
+    return [...set].sort();
+  }, [days, today]);
 
   // 포커스 중에만 구독 — 이탈 시 unsubscribe (Firestore 읽기 비용 직결)
   useFocusEffect(useCallback(() => subscribe(id, today), [id, today, subscribe]));
@@ -103,10 +98,19 @@ export default function RoomHome() {
           </Text>
         </View>
 
-        {/* 알림 벨: 곡별 코멘트 기능 도입 후 활성화 (현재 비활성) */}
-        <View style={styles.bell}>
-          <IconButton name="bell" size={size.iconLg} accessibilityLabel="알림 (준비 중)" disabled />
-          <View style={styles.dot} />
+        <View style={styles.headerActions}>
+          {/* 팀원·초대 코드 — 생성 이후에도 코드를 다시 보고 공유 */}
+          <IconButton
+            name="users"
+            size={size.iconLg}
+            accessibilityLabel="팀원·초대 코드"
+            onPress={() => router.push(`/room/${id}/members`)}
+          />
+          {/* 알림 벨: 곡별 코멘트 기능 도입 후 활성화 (현재 비활성) */}
+          <View style={styles.bell}>
+            <IconButton name="bell" size={size.iconLg} accessibilityLabel="알림 (준비 중)" disabled />
+            <View style={styles.dot} />
+          </View>
         </View>
       </View>
 
@@ -162,6 +166,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   titleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   bell: { position: 'relative' },
   dot: {
     position: 'absolute',

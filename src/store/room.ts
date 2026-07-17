@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { subscribeMembers, subscribeRoom, subscribeTracks } from '@/lib/db';
+import { subscribeDays, subscribeMembers, subscribeRoom, subscribeTracks } from '@/lib/db';
 import { toMessage } from '@/lib/errors';
-import type { Member, Room, Track } from '@/types/models';
+import type { Day, Member, Room, Track } from '@/types/models';
 
 /**
  * 단일 팀 구독 (docs/frontend.md § State Management — 서버 상태)
@@ -14,6 +14,7 @@ interface RoomStore {
   room: Room | null;
   members: Member[];
   tracks: Track[]; // 구독 중인 dateKey의 트랙
+  days: Day[]; // 곡이 있는 날짜 목록 (날짜 탭)
   status: Status;
   error: string | null;
   subscribe: (roomId: string, dateKey: string) => () => void;
@@ -23,6 +24,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
   room: null,
   members: [],
   tracks: [],
+  days: [],
   status: 'loading',
   error: null,
 
@@ -34,6 +36,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
       subscribeRoom(roomId, (room) => set({ room, status: 'ready' }), onErr),
       subscribeMembers(roomId, (members) => set({ members }), onErr),
       subscribeTracks(roomId, dateKey, (tracks) => set({ tracks }), onErr),
+      subscribeDays(roomId, (days) => set({ days }), onErr),
     ];
 
     return () => unsubs.forEach((u) => u());
