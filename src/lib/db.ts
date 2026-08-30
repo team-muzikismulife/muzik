@@ -5,11 +5,14 @@ import {
   getDoc,
   getDocs,
   limit,
+  onSnapshot,
+  orderBy,
   query,
   where,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Member, Room } from '@/types/models';
+import type { Day, Member, Room, Track } from '@/types/models';
 
 /**
  * 읽기 레이어 (docs/frontend.md § Data Fetching)
@@ -86,5 +89,66 @@ async function fetchTeam(roomId: string): Promise<TeamSummary | null> {
       const m = d.data() as Member;
       return { uid: m.uid, nickname: m.nickname, photoColor: m.photoColor };
     }),
+  };
+}
+
+export interface RoomWithId extends Room {
+  id: string;
+}
+
+export interface RoomHomeSubscription {
+  onRoom: (room: RoomWithId | null) => void;
+  onMembers: (members: Member[]) => void;
+  onTracks: (tracks: Track[]) => void;
+  onDay: (day: Day | null) => void;
+  onError: (error: unknown) => void;
+}
+
+/**
+ * 방 홈 실시간 구독 (백엔드설계.md §5)
+ *
+ * 화면은 구독을 직접 만들지 않는다. 여기서 Firestore 경로와 정렬 규칙을 캡슐화하고,
+ * Zustand store가 스냅샷을 받아 화면 상태로 변환한다.
+ */
+export function subscribeRoomHome(
+  roomId: string,
+  dateKey: string,
+  handlers: RoomHomeSubscription,
+): Unsubscribe {
+  const roomRef = doc(db, 'rooms', roomId);
+
+  const unsubscribers = [
+    onSnapshot(
+      roomRef,
+      (snap) => {
+        handlers.onRoom(
+          snap.exists() ? ({ ...(snap.data() as Omit<Room, 'id'>), id: snap.id }) : null,
+        );
+      },
+      handlers.onError,
+    ),
+    onSnapshot(
+      query(collection(db, 'rooms', roomId, 'members'), orderBy('joinedAt', 'asc')),
+      (snap) => handlers.onMembers(snap.docs.map((d) => d.data() as Member)),
+      handlers.onError,
+    ),
+    onSnapshot(
+      query(
+        collection(db, 'rooms', roomId, 'tracks'),
+        where('dateKey', '==', dateKey),
+        orderBy('order', 'asc'),
+      ),
+      (snap) => handlers.onTracks(snap.docs.map((d) => d.data() as Track)),
+      handlers.onError,
+    ),
+    onSnapshot(
+      doc(db, 'rooms', roomId, 'days', dateKey),
+      (snap) => handlers.onDay(snap.exists() ? (snap.data() as Day) : null),
+      handlers.onError,
+    ),
+  ];
+
+  return () => {
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
   };
 }

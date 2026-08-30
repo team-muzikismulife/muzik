@@ -13,7 +13,7 @@ import { colors, opacity, radius, size, spacing, typography } from '@/theme/toke
 import { Screen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
 import { PressableScale } from '@/components/PressableScale';
-import { fieldError, InviteCodeSchema, NicknameSchema } from '@/schemas';
+import { fieldError, InviteCodeSchema, JoinRoomInput, NicknameSchema } from '@/schemas';
 import { joinRoom } from '@/lib/api';
 import { isOffline, toMessage } from '@/lib/errors';
 import { useSessionStore } from '@/store/session';
@@ -52,8 +52,9 @@ export default function InviteEntry() {
     setJoining(true);
     setError(null);
     try {
-      const { roomId } = await joinRoom({ code: normalized, nickname });
-      setLastNickname(nickname);
+      const input = JoinRoomInput.parse({ code: normalized, nickname });
+      const { roomId } = await joinRoom(input);
+      setLastNickname(input.nickname);
       // 초대 화면은 히스토리에 남기지 않는다 — 뒤로 가면 다시 입장 폼이 뜨는 게 어색하다
       router.replace(`/room/${roomId}`);
     } catch (e: unknown) {

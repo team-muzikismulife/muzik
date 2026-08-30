@@ -17,7 +17,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { IconButton } from '@/components/Icon';
 import { createRoom } from '@/lib/api';
 import { toMessage } from '@/lib/errors';
-import { fieldError, NicknameSchema, RoomNameSchema } from '@/schemas';
+import { CreateRoomInput, fieldError, NicknameSchema, RoomNameSchema } from '@/schemas';
 import { useSessionStore } from '@/store/session';
 import { toast } from '@/store/ui';
 
@@ -41,7 +41,11 @@ export default function CreateRoom() {
   const [nicknameInput, setNicknameInput] = useState<string | null>(null);
   const nickname = nicknameInput ?? lastNickname ?? '';
   const [submitting, setSubmitting] = useState(false);
-  const [created, setCreated] = useState<{ roomId: string; inviteCode: string } | null>(null);
+  const [created, setCreated] = useState<{
+    roomId: string;
+    inviteCode: string;
+    roomName: string;
+  } | null>(null);
 
   const nameError = fieldError(RoomNameSchema, name);
   const nicknameError = fieldError(NicknameSchema, nickname);
@@ -51,9 +55,10 @@ export default function CreateRoom() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const result = await createRoom({ name, nickname });
-      setLastNickname(nickname); // 다음 개설·입장 폼의 기본값
-      setCreated(result);
+      const input = CreateRoomInput.parse({ name, nickname });
+      const result = await createRoom(input);
+      setLastNickname(input.nickname); // 다음 개설·입장 폼의 기본값
+      setCreated({ ...result, roomName: input.name });
     } catch (e: unknown) {
       toast(toMessage(e, 'createRoom'));
     } finally {
@@ -105,7 +110,7 @@ export default function CreateRoom() {
               onPress={() =>
                 // 딥링크와 6자 코드를 반드시 병기한다 — muzik://는 Expo Go에서 안 열린다 (백엔드설계.md §7)
                 Share.share({
-                  message: `[MUZIK] 팀 "${name}"에 초대합니다.\n초대 코드: ${created.inviteCode}\nmuzik://r/${created.inviteCode}`,
+                  message: `[MUZIK] 팀 "${created.roomName}"에 초대합니다.\n초대 코드: ${created.inviteCode}\nmuzik://r/${created.inviteCode}`,
                 })
               }
               accessibilityRole="button"

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, Text, View, StyleSheet } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, hitSlop, radius, size, spacing, typography } from '@/theme/tokens';
 import { Screen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
@@ -13,7 +13,10 @@ import { TrackCard, AddTrackCard } from '@/components/TrackCard';
 import { todayKey } from '@/lib/date';
 import { useDateKey } from '@/hooks/useDateKey';
 import { missionFor } from '@/lib/themes';
-import type { Day, Track } from '@/types/models';
+import { toast } from '@/store/ui';
+import { useRoomStore } from '@/store/room';
+import { useSessionStore } from '@/store/session';
+import type { Day, Member, Track } from '@/types/models';
 
 /**
  * 메인 홈 (Figma 1:1732 "Main")
@@ -22,54 +25,8 @@ import type { Day, Track } from '@/types/models';
  * 카드는 **팀원 수만큼** 나열한다 (스펙 §2-C). 미등록 팀원도 자리를 차지하므로
  * "누가 아직 안 올렸는지"가 한눈에 보인다 — 이게 재촉 장치다.
  *
- * TODO(M2): MOCK 제거 → useFocusEffect + onSnapshot(tracks/members/days)
+ * Firestore 구독은 src/store/room.ts가 관리한다. 화면은 라우트/세션 상태와 UI 조립만 담당한다.
  */
-interface Member {
-  uid: string;
-  nickname: string;
-}
-
-const MOCK_MEMBERS: Member[] = [
-  { uid: 'u1', nickname: '보규' },
-  { uid: 'u2', nickname: '승완' },
-  { uid: 'u3', nickname: '규호' },
-];
-
-/**
- * 목업도 **실제 videoId의 실제 메타데이터**여야 한다.
- * 예전 목업은 videoId와 무관한 제목·아티스트를 손으로 적어서, 카드 배경(videoId 파생)과
- * 텍스트가 서로 다른 곡을 가리키고 있었다. 지어내지 말 것.
- */
-const MOCK_TRACKS: Track[] = [
-  {
-    videoId: 'pM86f0NAsCY', // 백예린 '1-4-3' Lyric Video
-    title: '1-4-3',
-    artist: 'Yerin Baek',
-    comment: '1-4-3의 의미는 I LOVE YOU',
-    uid: 'u1',
-    nickname: '보규',
-    dateKey: todayKey(),
-    order: 1,
-    createdAt: Date.now(),
-    embeddable: true,
-    durationSec: 218,
-    metaRefreshedAt: Date.now(),
-  },
-  {
-    videoId: 'JaIMSzE5yLA', // 실리카겔 'NO PAIN' M/V
-    title: 'NO PAIN',
-    artist: 'Silica Gel 실리카겔',
-    comment: '',
-    uid: 'u3',
-    nickname: '규호',
-    dateKey: todayKey(),
-    order: 2,
-    createdAt: Date.now(),
-    embeddable: true,
-    durationSec: 254,
-    metaRefreshedAt: Date.now(),
-  },
-];
 
 const DAY_MS = 86_400_000;
 const TAB_COUNT = 7;
@@ -84,8 +41,6 @@ function recentDateKeys(): string[] {
     todayKey(new Date(now - (TAB_COUNT - 1 - i) * DAY_MS)),
   );
 }
-
-type Status = 'loading' | 'ready' | 'empty' | 'error';
 
 /** 팀원 한 명의 오늘 현황 — 곡을 올렸거나(track), 아직 안 올렸거나(null) */
 interface Row {
@@ -102,40 +57,37 @@ const LIST_CONTENT = {
 export default function RoomHome() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-
-  // TODO(M1): session.uid / session.nickname 으로 교체
-  const myUid = 'u2';
-  // TODO(M1): rooms/{id}.name 으로 교체. 팀 이모지 속성은 두지 않는다 (온보딩구현계획.md 결정 4)
-  const teamName = '무직은 내 삶';
-
-  // TODO(M2): room store의 구독 상태로 교체
-  const [status, setStatus] = useState<Status>('ready');
+  const [retryKey, setRetryKey] = useState(0);
 
   // 새벽 4시를 넘기면 스스로 바뀐다 — 앱을 켜둔 채 마감을 넘겨도 어제에 머물지 않는다.
-  // TODO(M2): 이 값이 바뀌면 tracks 구독도 새 dateKey로 재구독해야 한다.
   const today = useDateKey();
+  const roomId = typeof id === 'string' ? id : '';
   const dateKeys = recentDateKeys();
-  const tracks = status === 'empty' ? [] : MOCK_TRACKS;
-  // TODO(M2): days/{today} 구독으로 교체. 곡 0개면 문서가 없어 null이 정상이다 —
-  // 그때만 missionFor가 로컬 계산으로 떨어진다
-  const todayDay: Day | null = null;
+  const myUid = useSessionStore((s) => s.uid);
+  const status = useRoomStore((s) => s.status);
+  const error = useRoomStore((s) => s.error);
+  const room = useRoomStore((s) => s.room);
+  const members = useRoomStore((s) => s.members);
+  const tracks = useRoomStore((s) => s.todayTracks);
+  const todayDay: Day | null = useRoomStore((s) => s.todayDay);
+  const subscribeRoom = useRoomStore((s) => s.subscribe);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!roomId) return undefined;
+      return subscribeRoom(roomId, today);
+    }, [roomId, today, retryKey, subscribeRoom]),
+  );
 
   // 팀원 순서대로 한 줄씩 — 곡이 없으면 빈 카드
-  const rows: Row[] = MOCK_MEMBERS.map((member) => ({
+  const rows: Row[] = members.map((member) => ({
     member,
     track: tracks.find((t) => t.uid === member.uid) ?? null,
   }));
-  const doneToday = tracks.some((t) => t.uid === myUid);
+  const doneToday = !!myUid && tracks.some((t) => t.uid === myUid);
 
   const openAddTrack = () => {
-    // TODO(M2): /room/{id}/track/new 모달
-  };
-
-  /** __DEV__ 전용: 헤더를 길게 눌러 로딩·빈 상태·에러를 순회한다 (데모/QA용) */
-  const cycleStatus = () => {
-    if (!__DEV__) return;
-    const order: Status[] = ['ready', 'loading', 'empty', 'error'];
-    setStatus(order[(order.indexOf(status) + 1) % order.length]);
+    toast('곡 등록은 다음 단계에서 연결할게요');
   };
 
   if (status === 'error') {
@@ -144,9 +96,23 @@ export default function RoomHome() {
         <StateView
           status="error"
           title="팀을 불러오지 못했어요"
-          message="네트워크 연결을 확인한 뒤 다시 시도해 주세요."
+          message={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'}
           actionLabel="다시 시도"
-          onAction={() => setStatus('ready')}
+          onAction={() => setRetryKey((key) => key + 1)}
+        />
+      </Screen>
+    );
+  }
+
+  if (status === 'empty' || !roomId) {
+    return (
+      <Screen>
+        <StateView
+          status="empty"
+          title="팀을 찾을 수 없어요"
+          message="팀 목록에서 다시 선택해 주세요."
+          actionLabel="팀 목록으로"
+          onAction={() => router.replace('/')}
         />
       </Screen>
     );
@@ -163,7 +129,6 @@ export default function RoomHome() {
            */}
           <PressableScale
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-            onLongPress={cycleStatus}
             hitSlop={hitSlop.md}
             accessibilityRole="button"
             accessibilityLabel="팀 목록으로"
@@ -171,7 +136,7 @@ export default function RoomHome() {
             <Icon name="chevronLeft" size={size.iconLg} color={colors.text} />
           </PressableScale>
           <Text style={typography.title} numberOfLines={1}>
-            {teamName}
+            {room?.name ?? '팀'}
           </Text>
         </View>
 
@@ -188,7 +153,7 @@ export default function RoomHome() {
       <DateTabs
         dateKeys={dateKeys}
         selected={today}
-        onSelect={(dk) => router.push(`/room/${id}/playlist/${dk}`)}
+        onSelect={(dk) => router.push(`/room/${roomId}/playlist/${dk}`)}
       />
 
       <FlatList
