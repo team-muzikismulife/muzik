@@ -99,6 +99,7 @@ export default function RootLayout() {
         <Stack.Screen name="room/create" options={{ presentation: 'modal' }} />
         <Stack.Screen name="room/[id]/index" />
         <Stack.Screen name="room/[id]/playlist/[dateKey]" />
+        <Stack.Screen name="room/[id]/shared-playlist" />
         <Stack.Screen name="r/[code]" />
       </Stack>
       {/* 실패·안내의 단일 채널 — 화면 어디서든 toast()로 띄운다 */}
