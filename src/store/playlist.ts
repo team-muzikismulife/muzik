@@ -50,6 +50,7 @@ export const usePlaylistStore = create<PlaylistStore>((set, get) => ({
   load: (roomId, dateKey) => {
     const seq = ++requestSeq;
     const live = dateKey === todayKey();
+    let liveUnsubscribe: (() => void) | undefined;
 
     set({ status: 'loading', error: null, tracks: [], day: null });
 
@@ -61,6 +62,8 @@ export const usePlaylistStore = create<PlaylistStore>((set, get) => ({
     const fail = (error: unknown) => {
       if (seq !== requestSeq) return;
       requestSeq += 1;
+      liveUnsubscribe?.();
+      liveUnsubscribe = undefined;
       set({ status: 'error', error: toMessage(error) });
     };
 
@@ -99,11 +102,12 @@ export const usePlaylistStore = create<PlaylistStore>((set, get) => ({
       onError: fail,
     };
 
-    const unsubscribe = subscribePlaylistDetail(roomId, dateKey, handlers);
+    liveUnsubscribe = subscribePlaylistDetail(roomId, dateKey, handlers);
 
     return () => {
       requestSeq += 1;
-      unsubscribe();
+      liveUnsubscribe?.();
+      liveUnsubscribe = undefined;
     };
   },
 }));
