@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Linking, Text, View, StyleSheet } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import YoutubePlayer from 'react-native-youtube-iframe';
@@ -14,24 +14,15 @@ import { YoutubeArt } from '@/components/YoutubeArt';
 import { buildWatchVideosUrl } from '@/lib/youtube';
 import { missionFor } from '@/lib/themes';
 import { toast } from '@/store/ui';
-import type { Day, Track } from '@/types/models';
+import { usePlaylistStore } from '@/store/playlist';
+import { DateKeySchema } from '@/schemas';
+import type { Track } from '@/types/models';
 
 /**
  * 플레이리스트 상세 (Figma 4:1332)
  * 헤로 풀블리드 + 하단 페이드 / 참여자 겹침 아바타 / [유튜브에서 재생] + [미리듣기] / 트랙 리스트
- * TODO(M3): MOCK 제거 → dateKey로 실제 필터링(오늘=onSnapshot, 과거=1회 get), hero=days.coverVideoId
- *
- * 목업도 **실제 videoId의 실제 메타데이터**여야 한다 — 지어내면 배경(videoId 파생)과 어긋난다.
+ * dateKey별 실제 tracks/days 데이터를 보여준다. 오늘은 실시간, 과거는 1회 조회한다.
  */
-const meta = { comment: '', dateKey: '2026-05-15', createdAt: 0, embeddable: true, metaRefreshedAt: 0 };
-const MOCK_TRACKS: Track[] = [
-  { videoId: 'pM86f0NAsCY', title: '1-4-3', artist: 'Yerin Baek', uid: 'u1', nickname: '보규', order: 1, durationSec: 218, ...meta },
-  { videoId: 'QJ4fmVJOuxU', title: 'Big Love', artist: 'The Black Skirts', uid: 'u2', nickname: '승완', order: 2, durationSec: 232, ...meta },
-  { videoId: 'JaIMSzE5yLA', title: 'NO PAIN', artist: 'Silica Gel 실리카겔', uid: 'u3', nickname: '규호', order: 3, durationSec: 254, ...meta },
-];
-
-const MEMBERS = ['보규', '승완', '규호'];
-
 const LIST_CONTENT = { paddingBottom: spacing.xxl };
 
 /** 'YYYY-MM-DD' → 'M월 D일' */
@@ -46,15 +37,50 @@ export default function PlaylistDetail() {
   const insets = useSafeAreaInsets();
   const [queueIndex, setQueueIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
-  const tracks = MOCK_TRACKS;
-  // TODO(M4): days/{dateKey} 구독으로 교체. 목데이터엔 스냅샷이 없어 missionFor가 로컬 계산으로 떨어진다
-  const day: Day | null = null;
+  const roomId = typeof id === 'string' ? id : '';
+  const rawDateKey = typeof dateKey === 'string' ? dateKey : '';
+  const selectedDateKey = DateKeySchema.safeParse(rawDateKey).success ? rawDateKey : '';
+  const status = usePlaylistStore((s) => s.status);
+  const error = usePlaylistStore((s) => s.error);
+  const tracks = usePlaylistStore((s) => s.tracks);
+  const day = usePlaylistStore((s) => s.day);
+  const loadPlaylist = usePlaylistStore((s) => s.load);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!roomId || !selectedDateKey) return undefined;
+      return loadPlaylist(roomId, selectedDateKey);
+    }, [roomId, selectedDateKey, retryKey, loadPlaylist]),
+  );
+
+  useEffect(() => {
+    setQueueIndex(0);
+    setPlaying(false);
+  }, [roomId, selectedDateKey]);
+
   // 미리듣기 큐 — embeddable === false / unavailable 곡은 인앱 재생이 안 된다
   const playable = tracks.filter((t) => t.embeddable && !t.unavailable);
   const current = playable[queueIndex];
-  // 히어로 = 그날의 대표 곡 (TODO(M3): days.coverVideoId)
-  const coverVideoId = tracks[0]?.videoId ?? '';
+
+  useEffect(() => {
+    if (queueIndex < playable.length) return;
+    setQueueIndex(Math.max(playable.length - 1, 0));
+    if (playable.length === 0) setPlaying(false);
+  }, [playable.length, queueIndex]);
+
+  const coverVideoId = day?.coverVideoId || tracks[0]?.videoId || '';
+  const participants = Array.from(new Map(tracks.map((t) => [t.uid, t])).values());
+  const formattedDate = selectedDateKey ? formatDate(selectedDateKey) : '선택한 날짜';
+
+  const goBackToRoom = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace(`/room/${roomId}`);
+  };
 
   /** 메인 재생: 유튜브 앱으로 핸드오프 (무인증·무쿼터 임시 재생목록) */
   const playOnYoutube = async () => {
@@ -75,7 +101,21 @@ export default function PlaylistDetail() {
     }
   };
 
-  if (tracks.length === 0) {
+  if (!roomId || !selectedDateKey) {
+    return (
+      <BleedScreen>
+        <StateView
+          status="error"
+          title="플레이리스트를 열 수 없어요"
+          message="팀 또는 날짜 정보가 올바르지 않아요."
+          actionLabel="팀 목록으로"
+          onAction={() => router.replace('/')}
+        />
+      </BleedScreen>
+    );
+  }
+
+  if (status === 'loading') {
     return (
       <BleedScreen>
         <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
@@ -83,15 +123,53 @@ export default function PlaylistDetail() {
             name="chevronLeft"
             accessibilityLabel="뒤로 가기"
             variant="circle"
-            onPress={() => router.back()}
+            onPress={goBackToRoom}
+          />
+        </View>
+        <StateView status="loading" />
+      </BleedScreen>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <BleedScreen>
+        <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
+          <IconButton
+            name="chevronLeft"
+            accessibilityLabel="뒤로 가기"
+            variant="circle"
+            onPress={goBackToRoom}
+          />
+        </View>
+        <StateView
+          status="error"
+          title="플레이리스트를 불러오지 못했어요"
+          message={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'}
+          actionLabel="다시 시도"
+          onAction={() => setRetryKey((key) => key + 1)}
+        />
+      </BleedScreen>
+    );
+  }
+
+  if (status === 'empty') {
+    return (
+      <BleedScreen>
+        <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
+          <IconButton
+            name="chevronLeft"
+            accessibilityLabel="뒤로 가기"
+            variant="circle"
+            onPress={goBackToRoom}
           />
         </View>
         <StateView
           status="empty"
           title="그날은 아무도 곡을 올리지 않았어요"
-          message={`${formatDate(dateKey)}의 플레이리스트가 비어 있어요.`}
+          message={`${formattedDate}의 플레이리스트가 비어 있어요.`}
           actionLabel="팀으로 돌아가기"
-          onAction={() => router.back()}
+          onAction={goBackToRoom}
         />
       </BleedScreen>
     );
@@ -101,7 +179,7 @@ export default function PlaylistDetail() {
     <BleedScreen>
       <FlatList
         data={tracks}
-        keyExtractor={(t) => t.videoId}
+        keyExtractor={(t) => `${t.uid}_${t.dateKey}`}
         contentContainerStyle={LIST_CONTENT}
         ListHeaderComponent={
           <View>
@@ -113,7 +191,7 @@ export default function PlaylistDetail() {
                   name="chevronLeft"
                   accessibilityLabel="뒤로 가기"
                   variant="circle"
-                  onPress={() => router.back()}
+                  onPress={goBackToRoom}
                 />
                 <View style={styles.topBarRight}>
                   <IconButton
@@ -135,10 +213,8 @@ export default function PlaylistDetail() {
                 </View>
               </View>
               <LinearGradient colors={colors.heroFade} style={styles.heroGradient}>
-                {/* TODO(M4): day = days/{dateKey} 구독값으로 교체 — 지금은 목데이터라 스냅샷이 없다.
-                    missionFor가 스냅샷 우선 규칙을 갖고 있다 (src/lib/themes.ts) */}
-                <Text style={typography.heroTitle}>{missionFor(dateKey, day)}</Text>
-                <Text style={typography.caption}>{formatDate(dateKey)}의 플레이리스트</Text>
+                <Text style={typography.heroTitle}>{missionFor(selectedDateKey, day)}</Text>
+                <Text style={typography.caption}>{formattedDate}의 플레이리스트</Text>
               </LinearGradient>
             </View>
 
@@ -146,15 +222,15 @@ export default function PlaylistDetail() {
             <View
               style={styles.membersRow}
               accessible
-              accessibilityLabel={`${MEMBERS.length}명이 함께 듣고 있어요`}
+              accessibilityLabel={`${participants.length}명이 곡을 올렸어요`}
             >
               <View style={styles.avatars}>
-                {MEMBERS.map((m) => (
-                  <Avatar key={m} nickname={m} size={size.avatarMd} overlap />
+                {participants.map((track) => (
+                  <Avatar key={track.uid} nickname={track.nickname} size={size.avatarMd} overlap />
                 ))}
               </View>
               <Text style={[typography.caption, styles.membersText]}>
-                {MEMBERS.length}명이 함께 듣고 있어요
+                {participants.length}명이 곡을 올렸어요
               </Text>
             </View>
 

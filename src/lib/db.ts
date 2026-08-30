@@ -133,11 +133,66 @@ export function subscribeRoomHome(
       handlers.onError,
     ),
     onSnapshot(
-      query(
-        collection(db, 'rooms', roomId, 'tracks'),
-        where('dateKey', '==', dateKey),
-        orderBy('order', 'asc'),
-      ),
+      tracksByDateQuery(roomId, dateKey),
+      (snap) => handlers.onTracks(snap.docs.map((d) => d.data() as Track)),
+      handlers.onError,
+    ),
+    onSnapshot(
+      doc(db, 'rooms', roomId, 'days', dateKey),
+      (snap) => handlers.onDay(snap.exists() ? (snap.data() as Day) : null),
+      handlers.onError,
+    ),
+  ];
+
+  return () => {
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+  };
+}
+
+export interface PlaylistDetailData {
+  tracks: Track[];
+  day: Day | null;
+}
+
+export interface PlaylistDetailSubscription {
+  onTracks: (tracks: Track[]) => void;
+  onDay: (day: Day | null) => void;
+  onError: (error: unknown) => void;
+}
+
+function tracksByDateQuery(roomId: string, dateKey: string) {
+  return query(
+    collection(db, 'rooms', roomId, 'tracks'),
+    where('dateKey', '==', dateKey),
+    orderBy('order', 'asc'),
+  );
+}
+
+/** 날짜별 플레이리스트 1회 조회 — 과거 날짜 상세에서 사용한다. */
+export async function fetchPlaylistDetail(
+  roomId: string,
+  dateKey: string,
+): Promise<PlaylistDetailData> {
+  const [tracksSnap, daySnap] = await Promise.all([
+    getDocs(tracksByDateQuery(roomId, dateKey)),
+    getDoc(doc(db, 'rooms', roomId, 'days', dateKey)),
+  ]);
+
+  return {
+    tracks: tracksSnap.docs.map((d) => d.data() as Track),
+    day: daySnap.exists() ? (daySnap.data() as Day) : null,
+  };
+}
+
+/** 날짜별 플레이리스트 실시간 구독 — 오늘 날짜 상세에서 사용한다. */
+export function subscribePlaylistDetail(
+  roomId: string,
+  dateKey: string,
+  handlers: PlaylistDetailSubscription,
+): Unsubscribe {
+  const unsubscribers = [
+    onSnapshot(
+      tracksByDateQuery(roomId, dateKey),
       (snap) => handlers.onTracks(snap.docs.map((d) => d.data() as Track)),
       handlers.onError,
     ),
