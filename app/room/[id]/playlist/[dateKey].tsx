@@ -3,7 +3,6 @@ import { FlatList, Linking, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import YoutubePlayer from 'react-native-youtube-iframe';
 import { aspect, colors, radius, size, spacing, typography } from '@/theme/tokens';
 import { BleedScreen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
@@ -11,6 +10,7 @@ import { Icon, IconButton } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Avatar } from '@/components/Avatar';
 import { YoutubeArt } from '@/components/YoutubeArt';
+import { YoutubePreview } from '@/components/YoutubePreview';
 import { buildWatchVideosUrl } from '@/lib/youtube';
 import { missionFor } from '@/lib/themes';
 import { toast } from '@/store/ui';
@@ -270,7 +270,7 @@ export default function PlaylistDetail() {
             {/* 미리듣기 플레이어 (기기별 독립) */}
             {playing && !!current && (
               <View style={styles.player}>
-                <YoutubePlayer
+                <YoutubePreview
                   height={size.player}
                   play
                   videoId={current.videoId}

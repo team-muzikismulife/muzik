@@ -4,7 +4,6 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import YoutubePlayer from 'react-native-youtube-iframe';
 import { aspect, colors, radius, size, spacing, typography } from '@/theme/tokens';
 import { BleedScreen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
@@ -12,6 +11,7 @@ import { Avatar } from '@/components/Avatar';
 import { Icon, IconButton } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { YoutubeArt } from '@/components/YoutubeArt';
+import { YoutubePreview } from '@/components/YoutubePreview';
 import { buildWatchVideosUrl } from '@/lib/youtube';
 import { toast } from '@/store/ui';
 import { useRoomStore } from '@/store/room';
@@ -344,7 +344,7 @@ export default function SharedPlaylist() {
 
             {playing && !!current && (
               <View style={styles.player}>
-                <YoutubePlayer
+                <YoutubePreview
                   height={size.player}
                   play
                   videoId={current.videoId}
