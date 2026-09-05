@@ -56,14 +56,25 @@ export default function RootLayout() {
 
   useEffect(() => bootstrap(), [bootstrap]);
 
-  const ready = (fontsLoaded || fontError) && authStatus !== 'loading';
+  const fontsReady = fontsLoaded || fontError;
 
   useEffect(() => {
     // 폰트 로딩이 실패해도 앱은 띄운다 (시스템 폰트 폴백) — 흰 화면으로 멈추지 않는다
-    if (ready) SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
+    if (fontsReady) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsReady]);
 
-  if (!ready) return null;
+  if (!fontsReady) return null;
+
+  if (authStatus === 'loading') {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <Screen>
+          <StateView status="loading" />
+        </Screen>
+      </SafeAreaProvider>
+    );
+  }
 
   // 인증 실패는 흰 화면이 아니라 다음 행동이 있는 화면으로 (docs/frontend.md § Error Handling)
   if (authStatus === 'error') {
@@ -99,6 +110,7 @@ export default function RootLayout() {
         <Stack.Screen name="room/create" options={{ presentation: 'modal' }} />
         <Stack.Screen name="room/[id]/index" />
         <Stack.Screen name="room/[id]/playlist/[dateKey]" />
+        <Stack.Screen name="room/[id]/shared-playlist" />
         <Stack.Screen name="r/[code]" />
       </Stack>
       {/* 실패·안내의 단일 채널 — 화면 어디서든 toast()로 띄운다 */}

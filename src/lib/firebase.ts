@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { getApp, getApps, initializeApp, type FirebaseOptions } from 'firebase/app';
 import {
+  browserLocalPersistence,
   connectAuthEmulator,
   getAuth,
   getReactNativePersistence,
@@ -20,7 +22,7 @@ import { EMULATOR_PORTS, emulatorHost, useEmulator } from './emulator';
  * Firebase 초기화 (백엔드설계.md §7 — M1에서 막힐 지점 4개를 여기서 전부 처리한다)
  *
  * 1. **Auth 영속**: `getAuth()`는 RN에서 재시작 시 로그아웃된다. 익명 uid가 날아가면 방 소유권도 날아간다.
- *    → `initializeAuth` + AsyncStorage 영속. (타입 보강: src/types/firebase-auth-rn.d.ts)
+ *    → 네이티브는 `initializeAuth` + AsyncStorage, 웹은 브라우저 localStorage 영속.
  * 2. **Functions 리전**: 빠뜨리면 us-central1로 호출돼 원인 불명의 `internal` 에러가 난다.
  * 3. **Firestore 스트리밍**: Expo Go에서 onSnapshot이 조용히 멈추는 것을 long polling으로 막는다.
  * 4. **에뮬레이터**: 실기기는 localhost를 못 본다 → `emulator.ts`가 LAN IP를 넘긴다.
@@ -79,7 +81,8 @@ function createServices(): { auth: Auth; db: Firestore; functions: Functions } {
   const app = initializeApp(firebaseConfig());
 
   const auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
+    persistence:
+      Platform.OS === 'web' ? browserLocalPersistence : getReactNativePersistence(AsyncStorage),
   });
 
   const db = initializeFirestore(app, {
