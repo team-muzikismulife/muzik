@@ -31,6 +31,7 @@ export interface TeamSummary {
 
 /** Figma: 아바타 스택은 최대 4개 (107:1126) */
 const AVATAR_LIMIT = 4;
+const SHARED_PLAYLIST_LIMIT = 50;
 
 /**
  * 참여 중인 팀 목록 (온보딩구현계획.md §3)
@@ -206,4 +207,25 @@ export function subscribePlaylistDetail(
   return () => {
     unsubscribers.forEach((unsubscribe) => unsubscribe());
   };
+}
+
+export interface SharedPlaylistSubscription {
+  onTracks: (tracks: Track[]) => void;
+  onError: (error: unknown) => void;
+}
+
+/** 방 전체 공동 플레이리스트 — 유튜브 watch_videos 제한에 맞춰 등록 순 50곡까지 구독한다. */
+export function subscribeSharedPlaylist(
+  roomId: string,
+  handlers: SharedPlaylistSubscription,
+): Unsubscribe {
+  return onSnapshot(
+    query(
+      collection(db, 'rooms', roomId, 'tracks'),
+      orderBy('order', 'asc'),
+      limit(SHARED_PLAYLIST_LIMIT),
+    ),
+    (snap) => handlers.onTracks(snap.docs.map((d) => d.data() as Track)),
+    handlers.onError,
+  );
 }

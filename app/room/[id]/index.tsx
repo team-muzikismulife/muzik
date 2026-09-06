@@ -140,10 +140,18 @@ export default function RoomHome() {
           </Text>
         </View>
 
-        {/* 알림 벨: 곡 등록·코멘트 반응 알림용 (스펙 §2-A). 코멘트 기능 도입 후 활성화 */}
-        <View style={styles.bell}>
-          <IconButton name="bell" size={size.iconLg} accessibilityLabel="알림 (준비 중)" disabled />
-          <View style={styles.dot} />
+        <View style={styles.headerActions}>
+          <IconButton
+            name="music"
+            size={size.iconLg}
+            accessibilityLabel="공동 플리 열기"
+            onPress={() => router.push(`/room/${roomId}/shared-playlist`)}
+          />
+          {/* 알림 벨: 곡 등록·코멘트 반응 알림용 (스펙 §2-A). 코멘트 기능 도입 후 활성화 */}
+          <View style={styles.bell}>
+            <IconButton name="bell" size={size.iconLg} accessibilityLabel="알림 (준비 중)" disabled />
+            <View style={styles.dot} />
+          </View>
         </View>
       </View>
 
@@ -210,6 +218,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   titleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   bell: { position: 'relative' },
   dot: {
     position: 'absolute',
