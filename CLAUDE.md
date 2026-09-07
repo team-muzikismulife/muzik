@@ -19,7 +19,9 @@ React Native (Expo SDK 53, expo-router) + Firebase (Anonymous Auth, Firestore, C
 | `design.md` | **스타일링 컨벤션 (RN)** — 디자인 토큰, 반응형·SafeArea·Dynamic Type, 접근성, 체크리스트 |
 | `구현계획서.md` | 전체 MVP 계획 v2 — 아키텍처, 핵심 설계 결정 4개, 주차별 일정 |
 | `유튜브연동설계.md` | 등록 파이프라인, 핸드오프 재생, 킬스위치, 쿼터, 30일 캐시 정책 대응 |
-| `백엔드설계.md` | **Firestore 스키마 정본**, Functions 6개 명세, Security Rules, 구독 전략, M1 함정 |
+| `백엔드설계.md` | **Firestore 스키마 정본**, Functions 명세, Security Rules, 구독 전략, M1 함정 |
+| `곡등록설계.md` | 곡 등록(M2) — 모달 라우트, TrackForm 상태머신, 에러 처리, M2-a/M2-b 분담 |
+| `곡검색설계.md` | 곡 검색 등록(M2-c) — iTunes 검색 UI + search.list videoId 해결, 쿼터 캐시·킬스위치 |
 | `온보딩구현계획.md` | 온보딩(#14) — 익명 로그인, 참여 중인 팀 목록(collectionGroup), 팀 개설 |
 
 ## 핵심 설계 결정 (요약 — 상세는 docs/)
@@ -33,7 +35,10 @@ React Native (Expo SDK 53, expo-router) + Firebase (Anonymous Auth, Firestore, C
    `themeFor`를 직접 부르면 안 되는 이유: 선택이 `hash % THEMES.length`라 풀에 하나만 추가해도 **모든 날짜가
    재배치**되는데, 앱 배포와 Functions 배포는 독립이라 구버전 앱이 본 미션과 서버가 기록한 미션이 갈라진다.
 6. **초대**: 6자리 코드(`invites/{code}` 역참조) + `muzik://r/{code}` 딥링크 병행.
-7. Data API는 `videos.list` 검증만 (API 키는 Functions 전용, 앱에 넣지 말 것). `playlists.insert` 사용 금지.
+7. Data API는 `videos.list` 검증 + `search.list`(M2-c 검색 한정)만. API 키는 **Functions 전용**, 앱에 넣지 말 것.
+   `playlists.insert` 사용 금지. **`search.list`는 100유닛 — `videos.list`의 100배다.** 자동완성에 붙이면
+   하루 100번에 앱 전체가 멈춘다. 타이핑은 iTunes(쿼터 0)가 흡수하고, `search.list`는 사용자가 곡을
+   확정한 순간 곡당 1회 + 전역 캐시. 상세는 `곡검색설계.md`.
 8. **videoId만이 영구 원본.** 썸네일 URL은 **저장하지 않고 파생**한다(`src/lib/youtube.ts`).
    따로 저장하면 videoId와 어긋난다 — 실제로 어긋났었다. 목업도 **실제 videoId의 실제 메타**여야 한다.
    유튜브 썸네일엔 함정 둘: `maxresdefault`는 404가 잦고, `sd`/`hqdefault`는 4:3 레터박스다.
@@ -92,6 +97,9 @@ Firebase 키는 `.env` (`.env.example` 참고). 백엔드 개발은 Emulator Sui
 - [ ] **M1** — 방 생성 → 코드 공유 → 다른 기기 입장 → 멤버 실시간 반영
       (Emulator Suite, `functions/`, createRoom/joinRoom, 익명 로그인 + AsyncStorage 영속)
 - [ ] **M2** — 링크 붙여넣기 → 미리보기 → 등록 → 상대 기기에 즉시 표시. 하루 2곡은 서버가 거부
+- [ ] **M2-c** — 앱 안에서 곡 검색 → 후보 선택 → 등록 (M2-b 이후. `곡검색설계.md`, 이슈 #24)
+      M2에 끼워 넣지 않는다 — M2의 완료 조건("링크 붙여넣기 → 등록")이 흐려지면 M2 완료 판정이 불가능해진다.
+      `demo/spark-web`(Spark 무료)엔 넣을 수 없다: API 키를 둘 서버가 없다.
 - [ ] **M3** — 유튜브 앱에서 전곡 연속 재생 + 킬스위치 즉시 전환
 - [ ] **M4** — 과거 날짜별 플레이리스트, 당일 본인 곡만 수정·삭제
 - [ ] **M5** — Security Rules 하드닝 + 실 Firebase 프로젝트 + TestFlight
