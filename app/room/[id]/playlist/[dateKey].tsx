@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Linking, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { YoutubeArt } from '@/components/YoutubeArt';
 import { buildWatchVideosUrl } from '@/lib/youtube';
 import { addTracksToSharedPlaylist } from '@/lib/api';
 import { toMessage } from '@/lib/errors';
+import { nicknameResolver } from '@/lib/displayName';
 import { themeFor } from '@/lib/themes';
 import { useRoomStore } from '@/store/room';
 import { useConfigStore } from '@/store/config';
@@ -52,6 +53,9 @@ export default function PlaylistDetail() {
 
   // 포커스 중에만 구독 — 이 날짜의 tracks/members/room (이탈 시 unsubscribe)
   useFocusEffect(useCallback(() => subscribe(id, dateKey), [id, dateKey, subscribe]));
+
+  // 닉네임은 members가 정본 — 트랙에 박힌 값은 등록 시점 스냅샷이다
+  const who = useMemo(() => nicknameResolver(members), [members]);
 
   // 미리듣기 큐 — embeddable === false / unavailable 곡은 인앱 재생이 안 된다
   const playable = tracks.filter((t) => t.embeddable && !t.unavailable);
@@ -276,7 +280,7 @@ export default function PlaylistDetail() {
                   }}
                 />
                 <Text style={typography.caption}>
-                  {current.nickname}님의 추천{current.comment ? ` · “${current.comment}”` : ''}
+                  {who(current.uid, current.nickname)}님의 추천{current.comment ? ` · “${current.comment}”` : ''}
                 </Text>
               </View>
             )}
@@ -301,12 +305,12 @@ export default function PlaylistDetail() {
               }}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`${index + 1}번째 곡, ${item.title}, ${item.artist}, ${item.nickname}님 추천${isPlayable ? '' : ', 유튜브 전용'}`}
+              accessibilityLabel={`${index + 1}번째 곡, ${item.title}, ${item.artist}, ${who(item.uid, item.nickname)}님 추천${isPlayable ? '' : ', 유튜브 전용'}`}
             >
               <View>
                 <YoutubeArt videoId={item.videoId} style={styles.thumb} small />
                 <View style={styles.miniAvatar}>
-                  <Avatar nickname={item.nickname} size={size.avatarSm} overlap />
+                  <Avatar nickname={who(item.uid, item.nickname)} size={size.avatarSm} overlap />
                 </View>
               </View>
               <View style={styles.trackText}>

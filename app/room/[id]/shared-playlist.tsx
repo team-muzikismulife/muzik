@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Linking, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { YoutubeArt } from '@/components/YoutubeArt';
 import { buildWatchVideosUrl } from '@/lib/youtube';
 import { ensureSharedPlaylist, DEFAULT_SHARED_PLAYLIST_NAME } from '@/lib/api';
 import { toMessage } from '@/lib/errors';
+import { nicknameResolver } from '@/lib/displayName';
 import { isMockRoomId } from '@/lib/mockPreview';
 import { useSharedPlaylistStore } from '@/store/sharedPlaylist';
 import { useConfigStore } from '@/store/config';
@@ -39,10 +40,14 @@ export default function SharedPlaylist() {
   const playlists = useSharedPlaylistStore((s) => s.playlists);
   const selectedId = useSharedPlaylistStore((s) => s.selectedId);
   const items = useSharedPlaylistStore((s) => s.items);
+  const members = useSharedPlaylistStore((s) => s.members);
   const subscribe = useSharedPlaylistStore((s) => s.subscribe);
   const handoffMode = useConfigStore((s) => s.handoffMode);
 
   useFocusEffect(useCallback(() => subscribe(id), [id, subscribe]));
+
+  // 닉네임은 members가 정본 — 아이템에 박힌 값은 담을 때의 스냅샷이다
+  const who = useMemo(() => nicknameResolver(members), [members]);
 
   const playlist = playlists.find((p) => p.id === selectedId) ?? null;
   const coverVideoId = playlist?.coverVideoId ?? items[0]?.videoId ?? '';
@@ -225,7 +230,7 @@ export default function SharedPlaylist() {
                   }}
                 />
                 <Text style={typography.caption}>
-                  {current.recommendedByNickname}님 추천
+                  {who(current.recommendedByUid, current.recommendedByNickname)}님 추천
                 </Text>
               </View>
             )}
@@ -239,7 +244,7 @@ export default function SharedPlaylist() {
               setPlaying(true);
             }}
             accessibilityRole="button"
-            accessibilityLabel={`${item.title}, ${item.artist}, ${item.recommendedByNickname}님 추천`}
+            accessibilityLabel={`${item.title}, ${item.artist}, ${who(item.recommendedByUid, item.recommendedByNickname)}님 추천`}
           >
             <YoutubeArt videoId={item.videoId} style={styles.thumb} />
             <View style={styles.rowText}>
@@ -247,7 +252,7 @@ export default function SharedPlaylist() {
                 {item.title}
               </Text>
               <Text style={typography.caption} numberOfLines={1}>
-                {item.artist} · {item.recommendedByNickname}님 추천
+                {item.artist} · {who(item.recommendedByUid, item.recommendedByNickname)}님 추천
               </Text>
             </View>
           </PressableScale>

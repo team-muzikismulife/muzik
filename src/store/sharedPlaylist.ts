@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { subscribeSharedPlaylistItems, subscribeSharedPlaylists } from '@/lib/db';
+import { subscribeMembers, subscribeSharedPlaylistItems, subscribeSharedPlaylists } from '@/lib/db';
 import { toMessage } from '@/lib/errors';
 import { DEFAULT_SHARED_PLAYLIST_ID, DEFAULT_SHARED_PLAYLIST_NAME } from '@/lib/api';
-import { getMockAllTracks, isMockRoomId } from '@/lib/mockPreview';
-import type { SharedPlaylist, SharedPlaylistItem } from '@/types/models';
+import { getMockAllTracks, getMockRoomState, isMockRoomId } from '@/lib/mockPreview';
+import type { Member, SharedPlaylist, SharedPlaylistItem } from '@/types/models';
 
 /**
  * 공동 플리 서버 상태 (docs/배포본복원계획.md §4)
@@ -21,6 +21,8 @@ interface SharedPlaylistStore {
   playlists: SharedPlaylist[];
   selectedId: string | null;
   items: SharedPlaylistItem[];
+  /** 닉네임 해석용 — 담긴 아이템의 recommendedByNickname은 쓰기 시점 스냅샷이다 */
+  members: Member[];
   select: (playlistId: string) => void;
   subscribe: (roomId: string) => () => void;
 }
@@ -65,12 +67,13 @@ export const useSharedPlaylistStore = create<SharedPlaylistStore>((set, get) => 
   playlists: [],
   selectedId: null,
   items: [],
+  members: [],
 
   select: (playlistId) => set({ selectedId: playlistId }),
 
   subscribe: (roomId) => {
     const mySeq = ++seq;
-    set({ status: 'loading', error: null, playlists: [], items: [], selectedId: null });
+    set({ status: 'loading', error: null, playlists: [], items: [], selectedId: null, members: [] });
 
     // 목업 방은 Firestore에 없다 — 구독하면 permission-denied로 깨진다(배포본의 버그)
     if (isMockRoomId(roomId)) {
@@ -78,6 +81,7 @@ export const useSharedPlaylistStore = create<SharedPlaylistStore>((set, get) => 
       set({
         playlists,
         items,
+        members: getMockRoomState('').members,
         selectedId: playlists[0]?.id ?? null,
         status: items.length > 0 ? 'ready' : 'empty',
         error: null,
@@ -110,6 +114,16 @@ export const useSharedPlaylistStore = create<SharedPlaylistStore>((set, get) => 
       );
     };
 
+    // 멤버는 닉네임 해석에만 쓴다 — 실패해도 스냅샷 폴백이 있으므로 화면을 막지 않는다
+    const unsubMembers = subscribeMembers(
+      roomId,
+      (members) => {
+        if (mySeq !== seq) return;
+        set({ members });
+      },
+      () => {},
+    );
+
     const unsubPlaylists = subscribeSharedPlaylists(
       roomId,
       (playlists) => {
@@ -132,6 +146,7 @@ export const useSharedPlaylistStore = create<SharedPlaylistStore>((set, get) => 
     return () => {
       seq += 1;
       unsubItems?.();
+      unsubMembers();
       unsubPlaylists();
     };
   },

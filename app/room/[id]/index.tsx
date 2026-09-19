@@ -147,7 +147,15 @@ export default function RoomHome() {
         renderItem={({ item }) => {
           const isMine = item.member.uid === myUid;
           if (item.track) {
-            return <TrackCard track={item.track} isMine={isMine} onMore={openAddTrack} />;
+            // 닉네임은 members가 정본 — track.nickname은 등록 시점 스냅샷이라 이름을 바꾸면 어긋난다
+            return (
+              <TrackCard
+                track={item.track}
+                nickname={item.member.nickname}
+                isMine={isMine}
+                onMore={openAddTrack}
+              />
+            );
           }
           return (
             <AddTrackCard
