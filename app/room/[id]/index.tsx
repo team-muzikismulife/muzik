@@ -55,7 +55,7 @@ export default function RoomHome() {
   }, [days, today]);
 
   // 포커스 중에만 구독 — 이탈 시 unsubscribe (Firestore 읽기 비용 직결)
-  useFocusEffect(useCallback(() => subscribe(id, today), [id, today, subscribe]));
+  useFocusEffect(useCallback(() => subscribe(id, today, myUid), [id, today, myUid, subscribe]));
 
   // 팀원 순서대로 한 줄씩 — 곡이 없으면 빈 카드 (렌더 중 계산, 파생 상태 금지)
   const rows: Row[] = members.map((member) => ({
@@ -75,7 +75,7 @@ export default function RoomHome() {
           title="팀을 불러오지 못했어요"
           message={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'}
           actionLabel="다시 시도"
-          onAction={() => subscribe(id, today)}
+          onAction={() => subscribe(id, today, myUid)}
         />
       </Screen>
     );

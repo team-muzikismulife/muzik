@@ -15,9 +15,11 @@ import { buildWatchVideosUrl } from '@/lib/youtube';
 import { addTracksToSharedPlaylist } from '@/lib/api';
 import { toMessage } from '@/lib/errors';
 import { nicknameResolver } from '@/lib/displayName';
+import { isMockRoomId } from '@/lib/mockPreview';
 import { themeFor } from '@/lib/themes';
 import { useRoomStore } from '@/store/room';
 import { useConfigStore } from '@/store/config';
+import { useSessionStore } from '@/store/session';
 import { toast } from '@/store/ui';
 
 /**
@@ -49,10 +51,11 @@ export default function PlaylistDetail() {
   const status = useRoomStore((s) => s.status);
   const error = useRoomStore((s) => s.error);
   const subscribe = useRoomStore((s) => s.subscribe);
+  const myUid = useSessionStore((s) => s.uid);
   const handoffMode = useConfigStore((s) => s.handoffMode);
 
   // 포커스 중에만 구독 — 이 날짜의 tracks/members/room (이탈 시 unsubscribe)
-  useFocusEffect(useCallback(() => subscribe(id, dateKey), [id, dateKey, subscribe]));
+  useFocusEffect(useCallback(() => subscribe(id, dateKey, myUid), [id, dateKey, myUid, subscribe]));
 
   // 닉네임은 members가 정본 — 트랙에 박힌 값은 등록 시점 스냅샷이다
   const who = useMemo(() => nicknameResolver(members), [members]);
@@ -100,6 +103,11 @@ export default function PlaylistDetail() {
   /** 그날 곡을 공동 플리에 담기 — 중복은 서버가 건너뛰므로 addedCount로 문구를 가른다 */
   const addToSharedPlaylist = async () => {
     if (adding) return;
+    // 목업 방은 Firestore에 없다 — 담기를 태우면 권한 오류 토스트로 끝난다
+    if (isMockRoomId(id)) {
+      toast('목업 미리보기에서는 담을 수 없어요');
+      return;
+    }
     const candidates = tracks.filter((t) => !t.unavailable);
     if (candidates.length === 0) {
       toast('공동 플리에 담을 수 있는 곡이 없어요');
@@ -146,7 +154,7 @@ export default function PlaylistDetail() {
           title="플레이리스트를 불러오지 못했어요"
           message={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'}
           actionLabel="다시 시도"
-          onAction={() => subscribe(id, dateKey)}
+          onAction={() => subscribe(id, dateKey, myUid)}
         />
       </BleedScreen>
     );

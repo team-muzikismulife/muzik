@@ -24,15 +24,16 @@ interface SharedPlaylistStore {
   /** 닉네임 해석용 — 담긴 아이템의 recommendedByNickname은 쓰기 시점 스냅샷이다 */
   members: Member[];
   select: (playlistId: string) => void;
-  subscribe: (roomId: string) => () => void;
+  /** uid는 목업 방에서 '나'를 정하는 데만 쓴다 */
+  subscribe: (roomId: string, uid?: string | null) => () => void;
 }
 
 /** 늦게 도착한 구독 콜백이 최신 구독을 덮어쓰지 않게 하는 세대 번호 */
 let seq = 0;
 
 /** 목업 방에서 보여줄 가짜 폴더 — 실제 곡들을 담아둔 것처럼 만든다 */
-function mockSnapshot(): { playlists: SharedPlaylist[]; items: SharedPlaylistItem[] } {
-  const tracks = getMockAllTracks();
+function mockSnapshot(uid?: string | null): { playlists: SharedPlaylist[]; items: SharedPlaylistItem[] } {
+  const tracks = getMockAllTracks(uid);
   const items: SharedPlaylistItem[] = tracks.map((t, i) => ({
     videoId: t.videoId,
     title: t.title,
@@ -40,6 +41,7 @@ function mockSnapshot(): { playlists: SharedPlaylist[]; items: SharedPlaylistIte
     sourceDateKey: t.dateKey,
     recommendedByUid: t.uid,
     recommendedByNickname: t.nickname,
+    embeddable: t.embeddable,
     addedByUid: t.uid,
     addedAt: t.createdAt,
     order: i,
@@ -50,7 +52,7 @@ function mockSnapshot(): { playlists: SharedPlaylist[]; items: SharedPlaylistIte
       {
         id: DEFAULT_SHARED_PLAYLIST_ID,
         name: DEFAULT_SHARED_PLAYLIST_NAME,
-        createdBy: 'mock-you',
+        createdBy: tracks[0]?.uid ?? 'mock-you',
         createdAt: tracks[0]?.createdAt ?? Date.now(),
         updatedAt: Date.now(),
         trackCount: items.length,
@@ -71,17 +73,17 @@ export const useSharedPlaylistStore = create<SharedPlaylistStore>((set, get) => 
 
   select: (playlistId) => set({ selectedId: playlistId }),
 
-  subscribe: (roomId) => {
+  subscribe: (roomId, uid) => {
     const mySeq = ++seq;
     set({ status: 'loading', error: null, playlists: [], items: [], selectedId: null, members: [] });
 
     // 목업 방은 Firestore에 없다 — 구독하면 permission-denied로 깨진다(배포본의 버그)
     if (isMockRoomId(roomId)) {
-      const { playlists, items } = mockSnapshot();
+      const { playlists, items } = mockSnapshot(uid);
       set({
         playlists,
         items,
-        members: getMockRoomState('').members,
+        members: getMockRoomState('', uid).members,
         selectedId: playlists[0]?.id ?? null,
         status: items.length > 0 ? 'ready' : 'empty',
         error: null,

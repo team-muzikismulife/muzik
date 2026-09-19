@@ -320,15 +320,16 @@ export interface EnsureSharedPlaylistInput {
 export async function ensureSharedPlaylist({
   roomId,
   name = DEFAULT_SHARED_PLAYLIST_NAME,
-}: EnsureSharedPlaylistInput): Promise<{ playlistId: string }> {
+}: EnsureSharedPlaylistInput): Promise<{ playlistId: string; created: boolean }> {
   const uid = requireUid();
   const now = Date.now();
   const ref = doc(db, 'rooms', roomId, 'sharedPlaylists', DEFAULT_SHARED_PLAYLIST_ID);
 
-  await runTransaction(db, async (tx) => {
+  // 생성 여부는 **트랜잭션 반환값**으로 받는다 — 외부 변수에 쓰면 재시도 시 어긋난다
+  const created = await runTransaction(db, async (tx) => {
     if ((await tx.get(ref)).exists()) {
       tx.update(ref, { name, updatedAt: now });
-      return;
+      return false;
     }
     const playlist: SharedPlaylist = {
       id: DEFAULT_SHARED_PLAYLIST_ID,
@@ -339,9 +340,10 @@ export async function ensureSharedPlaylist({
       trackCount: 0,
     };
     tx.set(ref, playlist);
+    return true;
   });
 
-  return { playlistId: DEFAULT_SHARED_PLAYLIST_ID };
+  return { playlistId: DEFAULT_SHARED_PLAYLIST_ID, created };
 }
 
 export interface AddTracksToSharedPlaylistInput {
@@ -390,15 +392,19 @@ export async function addTracksToSharedPlaylist({
 
     addedCount = fresh.length;
 
+    // 전부 이미 담겨 있으면 아무것도 쓰지 않는다 — updatedAt만 올리면 목록 정렬(updatedAt desc)이
+    // 흔들리고, 커버가 비어 있을 때 담지도 않은 곡이 커버가 된다("첫 곡이 커버" 계약 위반).
+    // 아래 fresh[0] 접근이 안전한 것도 이 가드 덕분이다.
+    if (addedCount === 0) return;
+
     const playlist = playlistSnap.exists() ? (playlistSnap.data() as SharedPlaylist) : null;
-    const cover = playlist?.coverVideoId ?? fresh[0]?.track.videoId ?? unique[0].videoId;
 
     if (playlist) {
       tx.update(playlistRef, {
         name: playlist.name || playlistName,
         updatedAt: now,
         trackCount: (playlist.trackCount ?? 0) + addedCount,
-        coverVideoId: cover,
+        coverVideoId: playlist.coverVideoId ?? fresh[0].track.videoId,
       });
     } else {
       const created: SharedPlaylist = {
@@ -408,7 +414,7 @@ export async function addTracksToSharedPlaylist({
         createdAt: now,
         updatedAt: now,
         trackCount: addedCount,
-        coverVideoId: cover,
+        coverVideoId: fresh[0].track.videoId,
       };
       tx.set(playlistRef, created);
     }
@@ -421,6 +427,7 @@ export async function addTracksToSharedPlaylist({
         sourceDateKey: track.dateKey,
         recommendedByUid: track.uid,
         recommendedByNickname: track.nickname,
+        embeddable: track.embeddable,
         addedByUid: uid,
         addedAt: now,
         // 담은 순간의 epoch + 인덱스 — 같은 배치 안의 순서를 보존한다

@@ -88,8 +88,18 @@ service cloud.firestore {
       // ── 공동 플리 ── 팀이 함께 채우는 곡 폴더 (docs/배포본복원계획.md §1)
       match /sharedPlaylists/{playlistId} {
         allow read: if isMember(roomId);
-        // 담기는 멤버 누구나 — 폴더는 팀 공용이라 만든 사람만 쓸 수 있으면 협업이 안 된다
-        allow create, update: if isMember(roomId);
+        // 담기는 멤버 누구나 — 폴더는 팀 공용이라 만든 사람만 쓸 수 있으면 협업이 안 된다.
+        // 다만 계약 필드는 묶는다: 멤버 검사만으로는 id·createdBy를 남의 것으로 위조할 수 있다.
+        allow create: if isMember(roomId)
+          && request.resource.data.keys().hasOnly([
+               'id', 'name', 'createdBy', 'createdAt', 'updatedAt', 'trackCount', 'coverVideoId'
+             ])
+          && request.resource.data.id == playlistId
+          && request.resource.data.createdBy == myUid();
+        // 생성자·생성시각은 이후 바뀌지 않는다 — 클라가 실제로 고치는 건 아래 넷뿐이다
+        allow update: if isMember(roomId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'updatedAt', 'trackCount', 'coverVideoId']);
         // 삭제는 막는다 (MVP 범위 밖 — 되돌릴 수 없는데 확인 동선이 없다)
         allow delete: if false;
 

@@ -17,6 +17,7 @@ import { nicknameResolver } from '@/lib/displayName';
 import { isMockRoomId } from '@/lib/mockPreview';
 import { useSharedPlaylistStore } from '@/store/sharedPlaylist';
 import { useConfigStore } from '@/store/config';
+import { useSessionStore } from '@/store/session';
 import { toast } from '@/store/ui';
 
 /**
@@ -42,16 +43,20 @@ export default function SharedPlaylist() {
   const items = useSharedPlaylistStore((s) => s.items);
   const members = useSharedPlaylistStore((s) => s.members);
   const subscribe = useSharedPlaylistStore((s) => s.subscribe);
+  const myUid = useSessionStore((s) => s.uid);
   const handoffMode = useConfigStore((s) => s.handoffMode);
 
-  useFocusEffect(useCallback(() => subscribe(id), [id, subscribe]));
+  useFocusEffect(useCallback(() => subscribe(id, myUid), [id, myUid, subscribe]));
 
   // 닉네임은 members가 정본 — 아이템에 박힌 값은 담을 때의 스냅샷이다
   const who = useMemo(() => nicknameResolver(members), [members]);
 
   const playlist = playlists.find((p) => p.id === selectedId) ?? null;
   const coverVideoId = playlist?.coverVideoId ?? items[0]?.videoId ?? '';
-  const current = items[queueIndex];
+  // 미리듣기 큐는 인앱 재생이 되는 곡만 — 날짜별 상세와 같은 규칙이다.
+  // 핸드오프(유튜브 앱)는 embeddable과 무관하므로 items 전체를 그대로 쓴다.
+  const playable = useMemo(() => items.filter((i) => i.embeddable !== false), [items]);
+  const current = playable[queueIndex];
   const previewPrimary = handoffMode === 'first_video';
 
   /** 폴더 만들기 — 목업 방에선 쓸 수 없다(Firestore에 없는 방이라 쓰기가 막힌다) */
@@ -63,8 +68,8 @@ export default function SharedPlaylist() {
     }
     setCreating(true);
     try {
-      await ensureSharedPlaylist({ roomId: id, name: DEFAULT_SHARED_PLAYLIST_NAME });
-      toast('공동 플리를 만들었어요');
+      const { created } = await ensureSharedPlaylist({ roomId: id, name: DEFAULT_SHARED_PLAYLIST_NAME });
+      toast(created ? '공동 플리를 만들었어요' : '공동 플리가 이미 있어요');
     } catch (e: unknown) {
       toast(toMessage(e));
     } finally {
@@ -93,7 +98,7 @@ export default function SharedPlaylist() {
   };
 
   const startPreview = () => {
-    if (items.length === 0) {
+    if (playable.length === 0) {
       toast('미리듣기할 수 있는 곡이 없어요');
       return;
     }
@@ -142,7 +147,7 @@ export default function SharedPlaylist() {
           title="공동 플리를 불러오지 못했어요"
           message={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'}
           actionLabel="다시 시도"
-          onAction={() => subscribe(id)}
+          onAction={() => subscribe(id, myUid)}
         />
       </BleedScreen>
     );
@@ -155,7 +160,7 @@ export default function SharedPlaylist() {
         <StateView
           status="empty"
           title="공동 플리가 아직 없어요"
-          message="즐겨 듣는 곡을 날짜별 플레이리스트에서 공동 플리에 곡을 담아 보세요."
+          message="날짜별 플레이리스트에서 즐겨 듣는 곡을 공동 플리에 담아 보세요."
           actionLabel="팀으로 돌아가기"
           onAction={() => router.back()}
         />
@@ -221,12 +226,12 @@ export default function SharedPlaylist() {
                   videoId={current.videoId}
                   onChangeState={(state: string) => {
                     if (state === 'ended') {
-                      setQueueIndex((i) => (i + 1 < items.length ? i + 1 : i));
+                      setQueueIndex((i) => (i + 1 < playable.length ? i + 1 : i));
                     }
                   }}
                   onError={() => {
                     // 삭제·차단된 영상 → 다음 곡으로 자동 스킵
-                    setQueueIndex((i) => (i + 1 < items.length ? i + 1 : i));
+                    setQueueIndex((i) => (i + 1 < playable.length ? i + 1 : i));
                   }}
                 />
                 <Text style={typography.caption}>
@@ -236,15 +241,24 @@ export default function SharedPlaylist() {
             )}
           </View>
         }
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => {
+          // 렌더는 items 전체지만 재생 큐는 playable만 → 큐 인덱스는 videoId로 찾는다 (두 배열 어긋남 방지)
+          const playableIndex = playable.findIndex((i) => i.videoId === item.videoId);
+          const isPlayable = playableIndex !== -1;
+
+          return (
           <PressableScale
             style={styles.row}
             onPress={() => {
-              setQueueIndex(index);
+              if (!isPlayable) {
+                toast('유튜브 전용 곡이에요');
+                return;
+              }
+              setQueueIndex(playableIndex);
               setPlaying(true);
             }}
             accessibilityRole="button"
-            accessibilityLabel={`${item.title}, ${item.artist}, ${who(item.recommendedByUid, item.recommendedByNickname)}님 추천`}
+            accessibilityLabel={`${item.title}, ${item.artist}, ${who(item.recommendedByUid, item.recommendedByNickname)}님 추천${isPlayable ? '' : ', 유튜브 전용'}`}
           >
             <YoutubeArt videoId={item.videoId} style={styles.thumb} />
             <View style={styles.rowText}>
@@ -256,7 +270,8 @@ export default function SharedPlaylist() {
               </Text>
             </View>
           </PressableScale>
-        )}
+          );
+        }}
       />
     </BleedScreen>
   );

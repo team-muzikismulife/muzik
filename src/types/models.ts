@@ -71,6 +71,8 @@ export interface SharedPlaylistItem {
   sourceDateKey: string;
   recommendedByUid: string;
   recommendedByNickname: string;
+  /** 담을 때의 Track 스냅샷 — 인앱 미리듣기 가능 여부. 없으면 미리듣기 큐에서 제외한다 */
+  embeddable: boolean;
   addedByUid: string;
   addedAt: number;
   order: number;

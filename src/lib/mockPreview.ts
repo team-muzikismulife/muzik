@@ -25,12 +25,14 @@ const MOCK_INVITE_CODE = 'MOCK12';
 /** 고정 epoch — 렌더할 때마다 값이 흔들리면 스냅샷 비교가 무의미해진다 */
 const MOCK_EPOCH = 1_800_000_000_000;
 
-/** 목업에서 '나'의 uid. 실제 로그인이 됐다면 그 uid를 쓴다(내 곡 수정 동선을 보여주려고) */
-let mockSelfUid = 'mock-you';
-
-function bindSelf(uid?: string) {
-  if (uid) mockSelfUid = uid;
-}
+/**
+ * 목업에서 '나'의 uid — 실제 로그인이 됐다면 그 uid를 쓴다(내 곡 수정 동선을 보여주려고).
+ *
+ * 모듈 전역에 담아두지 않는다. 그러면 "어느 화면을 먼저 열었는지"에 따라 값이 달라진다 —
+ * 팀 목록을 거치지 않고 방으로 바로 들어오면 세션 uid가 바인딩되지 않아,
+ * 내 곡인데도 `isMine`이 false가 되어 수정·삭제 메뉴가 사라진다.
+ */
+const DEFAULT_MOCK_SELF_UID = 'mock-you';
 
 export function isMockRoomId(roomId: string): boolean {
   return isMockPreviewEnabled() && roomId === MOCK_ROOM_ID;
@@ -44,9 +46,9 @@ function relativeDateKey(offset: number): string {
 
 const DAY_OFFSETS = [0, -1, -2, -3, -4];
 
-function mockMembers(): Member[] {
+function mockMembers(selfUid: string): Member[] {
   return [
-    { uid: mockSelfUid, nickname: '승완', joinedAt: MOCK_EPOCH, photoColor: '#7C5CFF' },
+    { uid: selfUid, nickname: '승완', joinedAt: MOCK_EPOCH, photoColor: '#7C5CFF' },
     { uid: 'mock-boggu', nickname: '보규', joinedAt: MOCK_EPOCH + 1, photoColor: '#38BDF8' },
     { uid: 'mock-gyoho', nickname: '규호', joinedAt: MOCK_EPOCH + 2, photoColor: '#4ADE80' },
     { uid: 'mock-sooyun', nickname: '수윤', joinedAt: MOCK_EPOCH + 3, photoColor: '#E60076' },
@@ -60,9 +62,9 @@ function track(
   return { ...t, createdAt: MOCK_EPOCH + t.order, embeddable: true, durationSec: 210, metaRefreshedAt: MOCK_EPOCH };
 }
 
-function mockTracksByDate(): Record<string, Track[]> {
+function mockTracksByDate(selfUid: string): Record<string, Track[]> {
   const [today, d1, d2, d3, d4] = DAY_OFFSETS.map(relativeDateKey);
-  const self = mockSelfUid;
+  const self = selfUid;
 
   return {
     [today]: [
@@ -96,10 +98,10 @@ export interface MockRoomState {
 }
 
 /** 방 홈이 쓰는 목업 상태 — `dateKey`에 해당하는 트랙만 tracks로 준다 */
-export function getMockRoomState(dateKey: string, uid?: string): MockRoomState {
-  bindSelf(uid);
-  const members = mockMembers();
-  const byDate = mockTracksByDate();
+export function getMockRoomState(dateKey: string, uid?: string | null): MockRoomState {
+  const selfUid = uid ?? DEFAULT_MOCK_SELF_UID;
+  const members = mockMembers(selfUid);
+  const byDate = mockTracksByDate(selfUid);
 
   return {
     room: {
@@ -107,7 +109,7 @@ export function getMockRoomState(dateKey: string, uid?: string): MockRoomState {
       name: '목업 테스트 팀',
       inviteCode: MOCK_INVITE_CODE,
       createdAt: MOCK_EPOCH,
-      createdBy: mockSelfUid,
+      createdBy: selfUid,
       memberCount: members.length,
     },
     members,
@@ -127,15 +129,13 @@ export function getMockRoomState(dateKey: string, uid?: string): MockRoomState {
 }
 
 /** 특정 날짜의 목업 트랙 — 날짜별 상세·공동 플리가 쓴다 */
-export function getMockTracks(dateKey: string, uid?: string): Track[] {
-  bindSelf(uid);
-  return mockTracksByDate()[dateKey] ?? [];
+export function getMockTracks(dateKey: string, uid?: string | null): Track[] {
+  return mockTracksByDate(uid ?? DEFAULT_MOCK_SELF_UID)[dateKey] ?? [];
 }
 
 /** 목업 방의 전체 곡 (등록 순) — 공동 플리 미리보기용 */
-export function getMockAllTracks(uid?: string): Track[] {
-  bindSelf(uid);
-  const byDate = mockTracksByDate();
+export function getMockAllTracks(uid?: string | null): Track[] {
+  const byDate = mockTracksByDate(uid ?? DEFAULT_MOCK_SELF_UID);
   return DAY_OFFSETS.map(relativeDateKey).flatMap((key) => byDate[key] ?? []);
 }
 
@@ -147,9 +147,8 @@ export interface MockTeamSummary {
 }
 
 /** 팀 목록에 끼워 넣을 목업 팀 카드 */
-export function getMockTeamSummary(uid?: string): MockTeamSummary {
-  bindSelf(uid);
-  const members = mockMembers();
+export function getMockTeamSummary(uid?: string | null): MockTeamSummary {
+  const members = mockMembers(uid ?? DEFAULT_MOCK_SELF_UID);
   return {
     id: MOCK_ROOM_ID,
     name: '목업 테스트 팀',
