@@ -8,10 +8,13 @@ on:
     branches:
       - main
       - dev
+      # 실제로 배포되는 갈래 — 여기에 CI가 없어서 검증 없이 커밋이 쌓였다
+      - demo/spark-web
   push:
     branches:
       - main
       - dev
+      - demo/spark-web
 
 concurrency:
   # PR 번호(또는 브랜치 ref) 기준 — 같은 PR에 새 커밋이 오면 이전 실행을 취소

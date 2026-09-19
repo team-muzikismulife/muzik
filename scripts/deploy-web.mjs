@@ -20,7 +20,9 @@ const run = (cmd) => execSync(cmd, { stdio: 'inherit' });
 
 console.log('▸ expo export -p web');
 fs.rmSync('dist', { recursive: true, force: true });
-run('npx expo export -p web');
+// --clear 필수: Metro 캐시가 남아 있으면 EXPO_PUBLIC_* 변경이 번들에 반영되지 않는다.
+// (인라인된 옛 값이 그대로 배포돼서, 번들 해시까지 그대로인 채로 나간다 — 조용히 틀린다)
+run('npx expo export -p web --clear');
 
 // 1) assets/node_modules → assets/vendored (Vercel node_modules 제외 회피)
 const nm = 'dist/assets/node_modules';
