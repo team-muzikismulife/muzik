@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchMyTeams, type TeamSummary } from '@/lib/db';
 import { toMessage } from '@/lib/errors';
+import { MOCK_ROOM_ID, getMockTeamSummary, isMockPreviewEnabled } from '@/lib/mockPreview';
 
 /**
  * 참여 중인 팀 목록 (온보딩)
@@ -29,8 +30,17 @@ export const useTeamsStore = create<TeamsStore>((set) => ({
     set({ status: 'loading', error: null });
     try {
       const teams = await fetchMyTeams(uid);
-      set({ teams, status: 'ready' });
+      // 목업 팀은 항상 맨 앞. 같은 id가 실제로 있을 리 없지만, 중복 카드가 뜨는 것보다 걸러두는 편이 안전하다
+      const withMock = isMockPreviewEnabled()
+        ? [getMockTeamSummary(uid), ...teams.filter((t) => t.id !== MOCK_ROOM_ID)]
+        : teams;
+      set({ teams: withMock, status: 'ready' });
     } catch (e: unknown) {
+      // 목업 프리뷰에선 조회 실패가 곧 빈 화면이 되면 안 된다 — 데모를 열 수 있는 게 우선이다
+      if (isMockPreviewEnabled()) {
+        set({ teams: [getMockTeamSummary(uid)], status: 'ready', error: null });
+        return;
+      }
       set({ status: 'error', error: toMessage(e) });
     }
   },

@@ -12,7 +12,14 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Day, Member, Room, Track } from '@/types/models';
+import type {
+  Day,
+  Member,
+  Room,
+  SharedPlaylist,
+  SharedPlaylistItem,
+  Track,
+} from '@/types/models';
 
 /**
  * 실시간 구독 (docs/frontend.md § Data Fetching)
@@ -175,4 +182,37 @@ async function fetchTeam(roomId: string): Promise<TeamSummary | null> {
       return { uid: m.uid, nickname: m.nickname, photoColor: m.photoColor };
     }),
   };
+}
+
+/**
+ * 공동 플리 목록 구독 — 최근에 담긴 폴더가 위로 온다.
+ * 폴더가 하나뿐이어도 목록으로 두는 건, 화면이 "선택된 폴더"를 상태로 들고 있기 때문이다.
+ */
+export function subscribeSharedPlaylists(
+  roomId: string,
+  next: (playlists: SharedPlaylist[]) => void,
+  error: (e: unknown) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'rooms', roomId, 'sharedPlaylists'), orderBy('updatedAt', 'desc')),
+    (snap) => next(snap.docs.map((d) => d.data() as SharedPlaylist)),
+    error,
+  );
+}
+
+/** 폴더 하나에 담긴 곡 구독 — 담은 순서(order asc)가 곧 재생 순서 */
+export function subscribeSharedPlaylistItems(
+  roomId: string,
+  playlistId: string,
+  next: (items: SharedPlaylistItem[]) => void,
+  error: (e: unknown) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(
+      collection(db, 'rooms', roomId, 'sharedPlaylists', playlistId, 'items'),
+      orderBy('order', 'asc'),
+    ),
+    (snap) => next(snap.docs.map((d) => d.data() as SharedPlaylistItem)),
+    error,
+  );
 }

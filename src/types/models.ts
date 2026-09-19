@@ -45,6 +45,38 @@ export interface Track {
 }
 
 /**
+ * 공동 플리 — 팀이 함께 채우는 곡 폴더. 날짜별 목록과 달리 **날짜에 묶이지 않는다.**
+ * 기본 폴더는 문서 ID `favorites` 하나를 공유한다(docs/배포본복원계획.md §1).
+ */
+export interface SharedPlaylist {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  trackCount: number;
+  /** 대표 이미지도 videoId로 저장한다 — 첫 곡이 담길 때 정해지고 이후 유지된다 */
+  coverVideoId?: string;
+}
+
+/**
+ * 공동 플리에 담긴 곡. **문서 ID = videoId** — 같은 곡을 두 번 담아도 중복되지 않는다.
+ * 원본 트랙(`Track`)을 참조하지 않고 값을 복사한다: 원본이 수정·삭제돼도 담아둔 곡은 남아야 한다.
+ */
+export interface SharedPlaylistItem {
+  videoId: string;
+  title: string;
+  artist: string;
+  /** 어느 날짜 목록에서 담겼는지 (출처 표시용) */
+  sourceDateKey: string;
+  recommendedByUid: string;
+  recommendedByNickname: string;
+  addedByUid: string;
+  addedAt: number;
+  order: number;
+}
+
+/**
  * 날짜별 집계 — 날짜 탭·과거 목록의 데이터 소스.
  * Firestore가 distinct를 못 해서 "존재하는 dateKey 목록"을 뽑을 수 없기 때문에 필요하다.
  */

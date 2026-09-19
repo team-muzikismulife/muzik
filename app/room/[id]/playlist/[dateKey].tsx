@@ -12,6 +12,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { Avatar } from '@/components/Avatar';
 import { YoutubeArt } from '@/components/YoutubeArt';
 import { buildWatchVideosUrl } from '@/lib/youtube';
+import { addTracksToSharedPlaylist } from '@/lib/api';
+import { toMessage } from '@/lib/errors';
 import { themeFor } from '@/lib/themes';
 import { useRoomStore } from '@/store/room';
 import { useConfigStore } from '@/store/config';
@@ -38,6 +40,7 @@ export default function PlaylistDetail() {
   const insets = useSafeAreaInsets();
   const [queueIndex, setQueueIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const room = useRoomStore((s) => s.room);
   const members = useRoomStore((s) => s.members);
@@ -88,6 +91,25 @@ export default function PlaylistDetail() {
     }
     setQueueIndex(0);
     setPlaying(true);
+  };
+
+  /** 그날 곡을 공동 플리에 담기 — 중복은 서버가 건너뛰므로 addedCount로 문구를 가른다 */
+  const addToSharedPlaylist = async () => {
+    if (adding) return;
+    const candidates = tracks.filter((t) => !t.unavailable);
+    if (candidates.length === 0) {
+      toast('공동 플리에 담을 수 있는 곡이 없어요');
+      return;
+    }
+    setAdding(true);
+    try {
+      const { addedCount } = await addTracksToSharedPlaylist({ roomId: id, tracks: candidates });
+      toast(addedCount > 0 ? `${addedCount}곡을 공동 플리에 담았어요` : '이미 모두 담겨 있어요');
+    } catch (e: unknown) {
+      toast(toMessage(e));
+    } finally {
+      setAdding(false);
+    }
   };
 
 
@@ -222,6 +244,20 @@ export default function PlaylistDetail() {
               유튜브에서 저장 버튼을 누르면 내 계정에 보관돼요
             </Text>
 
+            {/* 그날 곡을 통째로 공동 플리에 담는다 — 이미 담긴 곡은 서버가 건너뛴다 */}
+            <View style={styles.sharedRow}>
+              <PressableScale
+                style={[styles.sharedButton, adding && styles.disabled]}
+                onPress={addToSharedPlaylist}
+                disabled={adding}
+                accessibilityRole="button"
+                accessibilityLabel="이 날짜 곡을 공동 플리에 담기"
+              >
+                <Icon name="share" size={size.icon} color={colors.text} />
+                <Text style={typography.bodyMedium}>{adding ? '담는 중' : '공동 플리에 담기'}</Text>
+              </PressableScale>
+            </View>
+
             {/* 미리듣기 플레이어 (기기별 독립) */}
             {playing && !!current && (
               <View style={styles.player}>
@@ -335,6 +371,23 @@ const styles = StyleSheet.create({
   ctaPrimary: { backgroundColor: colors.text },
   ctaSecondary: { backgroundColor: colors.white10 },
   onPrimary: { color: colors.bg },
+  sharedRow: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  sharedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.white10,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
   saveHint: {
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.md,

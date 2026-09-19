@@ -99,6 +99,13 @@ export default function RoomHome() {
         </View>
 
         <View style={styles.headerActions}>
+          {/* 공동 플리 — 날짜와 무관하게 팀이 담아둔 곡 폴더 */}
+          <IconButton
+            name="share"
+            size={size.iconLg}
+            accessibilityLabel="공동 플리"
+            onPress={() => router.push(`/room/${id}/shared-playlist`)}
+          />
           {/* 팀원·초대 코드 — 생성 이후에도 코드를 다시 보고 공유 */}
           <IconButton
             name="users"

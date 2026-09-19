@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeDays, subscribeMembers, subscribeRoom, subscribeTracks } from '@/lib/db';
 import { toMessage } from '@/lib/errors';
+import { getMockRoomState, isMockRoomId } from '@/lib/mockPreview';
 import type { Day, Member, Room, Track } from '@/types/models';
 
 /**
@@ -30,6 +31,14 @@ export const useRoomStore = create<RoomStore>((set) => ({
 
   subscribe: (roomId, dateKey) => {
     set({ status: 'loading', error: null });
+
+    // 목업 방은 Firestore를 건드리지 않는다. 구독을 태우면 없는 방이라 permission-denied로 깨진다
+    if (isMockRoomId(roomId)) {
+      const mock = getMockRoomState(dateKey);
+      set({ ...mock, status: 'ready', error: null });
+      return () => {};
+    }
+
     const onErr = (e: unknown) => set({ status: 'error', error: toMessage(e) });
 
     const unsubs = [
