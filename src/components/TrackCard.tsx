@@ -8,6 +8,11 @@ import { YoutubeArt } from './YoutubeArt';
 
 interface Props {
   track: Track;
+  /**
+   * 표시용 닉네임 — `members`에서 해석한 **현재** 이름.
+   * 생략하면 `track.nickname`(등록 시점 스냅샷)으로 떨어진다 (docs/frontend.md § 닉네임 해석).
+   */
+  nickname?: string;
   /** 당일 + 본인 곡만 ⋯ 메뉴(수정/삭제) 노출 — 남의 곡엔 진입점이 아예 없다 */
   isMine?: boolean;
   onMore?: () => void;
@@ -19,8 +24,9 @@ interface Props {
  * 헤더(아바타+닉네임) — gap 80 — 곡 정보 + 코멘트 박스(우측 ⋯)
  * 구버전(카드 #1E1E1E + 썸네일 80×80 + 수정/삭제 버튼 2개)에서 교체됨.
  */
-export function TrackCard({ track, isMine, onMore }: Props) {
-  const label = [`${track.nickname}님의 곡`, track.title, track.artist, track.comment]
+export function TrackCard({ track, nickname, isMine, onMore }: Props) {
+  const who = nickname ?? track.nickname;
+  const label = [`${who}님의 곡`, track.title, track.artist, track.comment]
     .filter(Boolean)
     .join(', ');
 
@@ -31,8 +37,8 @@ export function TrackCard({ track, isMine, onMore }: Props) {
       <View style={[StyleSheet.absoluteFill, styles.overlay]} />
 
       <View style={styles.header}>
-        <Avatar nickname={track.nickname} size={size.avatarMd} glow />
-        <Text style={typography.body}>{track.nickname}</Text>
+        <Avatar nickname={who} size={size.avatarMd} glow />
+        <Text style={typography.body}>{who}</Text>
       </View>
 
       <View style={styles.content}>

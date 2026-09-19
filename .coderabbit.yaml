@@ -52,6 +52,8 @@ reviews:
     base_branches:
       - "main"
       - "dev"
+      # 실제로 배포되는 갈래 — 여기에 자동 리뷰가 없어서 검증 없이 커밋이 쌓였다 (ci.yml도 같은 이유로 확장)
+      - "demo/spark-web"
 
   # ── 파일 필터 (리뷰 제외) ──
   path_filters:

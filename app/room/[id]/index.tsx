@@ -55,7 +55,7 @@ export default function RoomHome() {
   }, [days, today]);
 
   // 포커스 중에만 구독 — 이탈 시 unsubscribe (Firestore 읽기 비용 직결)
-  useFocusEffect(useCallback(() => subscribe(id, today), [id, today, subscribe]));
+  useFocusEffect(useCallback(() => subscribe(id, today, myUid), [id, today, myUid, subscribe]));
 
   // 팀원 순서대로 한 줄씩 — 곡이 없으면 빈 카드 (렌더 중 계산, 파생 상태 금지)
   const rows: Row[] = members.map((member) => ({
@@ -75,7 +75,7 @@ export default function RoomHome() {
           title="팀을 불러오지 못했어요"
           message={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'}
           actionLabel="다시 시도"
-          onAction={() => subscribe(id, today)}
+          onAction={() => subscribe(id, today, myUid)}
         />
       </Screen>
     );
@@ -99,6 +99,13 @@ export default function RoomHome() {
         </View>
 
         <View style={styles.headerActions}>
+          {/* 공동 플리 — 날짜와 무관하게 팀이 담아둔 곡 폴더 */}
+          <IconButton
+            name="share"
+            size={size.iconLg}
+            accessibilityLabel="공동 플리"
+            onPress={() => router.push(`/room/${id}/shared-playlist`)}
+          />
           {/* 팀원·초대 코드 — 생성 이후에도 코드를 다시 보고 공유 */}
           <IconButton
             name="users"
@@ -140,7 +147,15 @@ export default function RoomHome() {
         renderItem={({ item }) => {
           const isMine = item.member.uid === myUid;
           if (item.track) {
-            return <TrackCard track={item.track} isMine={isMine} onMore={openAddTrack} />;
+            // 닉네임은 members가 정본 — track.nickname은 등록 시점 스냅샷이라 이름을 바꾸면 어긋난다
+            return (
+              <TrackCard
+                track={item.track}
+                nickname={item.member.nickname}
+                isMine={isMine}
+                onMore={openAddTrack}
+              />
+            );
           }
           return (
             <AddTrackCard

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeDays, subscribeMembers, subscribeRoom, subscribeTracks } from '@/lib/db';
 import { toMessage } from '@/lib/errors';
+import { getMockRoomState, isMockRoomId } from '@/lib/mockPreview';
 import type { Day, Member, Room, Track } from '@/types/models';
 
 /**
@@ -17,7 +18,8 @@ interface RoomStore {
   days: Day[]; // 곡이 있는 날짜 목록 (날짜 탭)
   status: Status;
   error: string | null;
-  subscribe: (roomId: string, dateKey: string) => () => void;
+  /** uid는 목업 방에서 '나'를 정하는 데만 쓴다 — 실데이터 경로에선 무시된다 */
+  subscribe: (roomId: string, dateKey: string, uid?: string | null) => () => void;
 }
 
 export const useRoomStore = create<RoomStore>((set) => ({
@@ -28,8 +30,16 @@ export const useRoomStore = create<RoomStore>((set) => ({
   status: 'loading',
   error: null,
 
-  subscribe: (roomId, dateKey) => {
+  subscribe: (roomId, dateKey, uid) => {
     set({ status: 'loading', error: null });
+
+    // 목업 방은 Firestore를 건드리지 않는다. 구독을 태우면 없는 방이라 permission-denied로 깨진다
+    if (isMockRoomId(roomId)) {
+      const mock = getMockRoomState(dateKey, uid);
+      set({ ...mock, status: 'ready', error: null });
+      return () => {};
+    }
+
     const onErr = (e: unknown) => set({ status: 'error', error: toMessage(e) });
 
     const unsubs = [

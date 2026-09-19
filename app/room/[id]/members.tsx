@@ -11,6 +11,7 @@ import { Avatar } from '@/components/Avatar';
 import { todayKey } from '@/lib/date';
 import { inviteUrl, shareInvite } from '@/lib/invite';
 import { useRoomStore } from '@/store/room';
+import { useSessionStore } from '@/store/session';
 import { toast } from '@/store/ui';
 import type { Member } from '@/types/models';
 
@@ -29,8 +30,9 @@ export default function Members() {
   const tracks = useRoomStore((s) => s.tracks);
   const status = useRoomStore((s) => s.status);
   const subscribe = useRoomStore((s) => s.subscribe);
+  const myUid = useSessionStore((s) => s.uid);
 
-  useFocusEffect(useCallback(() => subscribe(id, today), [id, today, subscribe]));
+  useFocusEffect(useCallback(() => subscribe(id, today, myUid), [id, today, myUid, subscribe]));
 
   const code = room?.inviteCode ?? '';
   const teamName = room?.name ?? '';
@@ -147,7 +149,7 @@ export default function Members() {
         )}
         ListEmptyComponent={
           status === 'error' ? (
-            <StateView status="error" title="팀원을 불러오지 못했어요" onAction={() => subscribe(id, today)} actionLabel="다시 시도" />
+            <StateView status="error" title="팀원을 불러오지 못했어요" onAction={() => subscribe(id, today, myUid)} actionLabel="다시 시도" />
           ) : (
             <StateView status="loading" />
           )

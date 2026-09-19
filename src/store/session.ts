@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { create } from 'zustand';
 import { auth } from '@/lib/firebase';
 import { toMessage } from '@/lib/errors';
+import { isMockPreviewEnabled } from '@/lib/mockPreview';
 
 /**
  * 세션 — 익명 로그인으로 얻은 uid와, 마지막에 쓴 닉네임 (docs/온보딩구현계획.md §1)
@@ -31,11 +32,24 @@ interface SessionStore {
   setLastNickname: (nickname: string) => void;
 }
 
+/**
+ * 인증 실패 처리.
+ *
+ * 목업 프리뷰가 켜져 있으면 **앱을 막지 않는다.** 목업은 로그인 없이 화면을 보여주려고 있는 건데,
+ * 세션 게이트에서 막히면 "시작하지 못했어요"만 뜨고 목업에 닿지도 못한다.
+ * uid 없이 ready로 넘기면 읽기 전용 목업은 그대로 돌고, 쓰기는 api.ts의 requireUid가 막는다.
+ */
+function fail(set: (partial: Partial<SessionStore>) => void, e: unknown) {
+  if (isMockPreviewEnabled()) {
+    set({ status: 'ready', error: null });
+    return;
+  }
+  set({ status: 'error', error: toMessage(e) });
+}
+
 /** 익명 로그인 — 이미 로그인돼 있으면 onAuthStateChanged가 먼저 uid를 준다 */
 function signIn(set: (partial: Partial<SessionStore>) => void) {
-  signInAnonymously(auth).catch((e: unknown) => {
-    set({ status: 'error', error: toMessage(e) });
-  });
+  signInAnonymously(auth).catch((e: unknown) => fail(set, e));
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
@@ -65,7 +79,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
         }
         signIn(set);
       },
-      (e: unknown) => set({ status: 'error', error: toMessage(e) }),
+      (e: unknown) => fail(set, e),
     );
   },
 

@@ -16,7 +16,7 @@ import { todayKey } from './date';
 import { themeFor } from './themes';
 import { INVITE_CODE_ALPHABET, INVITE_CODE_LENGTH } from '@/schemas';
 import type { CreateRoomInput, JoinRoomInput } from '@/schemas';
-import type { Track } from '@/types/models';
+import type { SharedPlaylist, SharedPlaylistItem, Track } from '@/types/models';
 
 /**
  * 쓰기 레이어 — ⚠️ **데모(Spark) 버전: 클라이언트 직접 Firestore 쓰기.**
@@ -302,4 +302,140 @@ export async function deleteTrack(roomId: string): Promise<void> {
       // 커버 재지정 실패는 무시 (삭제는 이미 커밋됨)
     }
   }
+}
+
+/** 기본 공동 플리 — 팀마다 문서 하나를 공유한다 (docs/배포본복원계획.md §1) */
+export const DEFAULT_SHARED_PLAYLIST_ID = 'favorites';
+export const DEFAULT_SHARED_PLAYLIST_NAME = '즐겨찾는 노래';
+
+export interface EnsureSharedPlaylistInput {
+  roomId: string;
+  name?: string;
+}
+
+/**
+ * 공동 플리 폴더 확보 — 없으면 만들고, 있으면 이름만 갱신한다(멱등).
+ * 곡을 담기 전에 빈 폴더를 먼저 보여줄 수 있어야 해서 별도 함수로 둔다.
+ */
+export async function ensureSharedPlaylist({
+  roomId,
+  name = DEFAULT_SHARED_PLAYLIST_NAME,
+}: EnsureSharedPlaylistInput): Promise<{ playlistId: string; created: boolean }> {
+  const uid = requireUid();
+  const now = Date.now();
+  const ref = doc(db, 'rooms', roomId, 'sharedPlaylists', DEFAULT_SHARED_PLAYLIST_ID);
+
+  // 생성 여부는 **트랜잭션 반환값**으로 받는다 — 외부 변수에 쓰면 재시도 시 어긋난다
+  const created = await runTransaction(db, async (tx) => {
+    if ((await tx.get(ref)).exists()) {
+      tx.update(ref, { name, updatedAt: now });
+      return false;
+    }
+    const playlist: SharedPlaylist = {
+      id: DEFAULT_SHARED_PLAYLIST_ID,
+      name,
+      createdBy: uid,
+      createdAt: now,
+      updatedAt: now,
+      trackCount: 0,
+    };
+    tx.set(ref, playlist);
+    return true;
+  });
+
+  return { playlistId: DEFAULT_SHARED_PLAYLIST_ID, created };
+}
+
+export interface AddTracksToSharedPlaylistInput {
+  roomId: string;
+  tracks: Track[];
+  playlistId?: string;
+  playlistName?: string;
+}
+
+/**
+ * 곡 담기 — 날짜별 목록에서 그날 곡을 통째로 공동 플리에 넣는다.
+ *
+ * **아이템 문서 ID가 videoId다.** 그래서 같은 곡을 다시 담아도 덮어쓰지 않고 건너뛴다 —
+ * 화면은 `addedCount`로 "n곡 담았어요"와 "이미 모두 담겨 있어요"를 구분한다.
+ * 재생 불가(`unavailable`) 곡은 담지 않는다. 담을 게 하나도 없으면 실패로 던진다
+ * (조용히 성공하면 "담았다"는 토스트가 거짓말이 된다).
+ */
+export async function addTracksToSharedPlaylist({
+  roomId,
+  tracks,
+  playlistId = DEFAULT_SHARED_PLAYLIST_ID,
+  playlistName = DEFAULT_SHARED_PLAYLIST_NAME,
+}: AddTracksToSharedPlaylistInput): Promise<{ playlistId: string; addedCount: number }> {
+  const uid = requireUid();
+  const now = Date.now();
+
+  // 같은 요청 안의 중복도 먼저 접는다 (videoId 하나당 하나)
+  const unique = [...new Map(tracks.filter((t) => !t.unavailable).map((t) => [t.videoId, t])).values()];
+  if (unique.length === 0) throw coded('failed-precondition');
+
+  const playlistRef = doc(db, 'rooms', roomId, 'sharedPlaylists', playlistId);
+  const itemRefs = unique.map((t) => doc(playlistRef, 'items', t.videoId));
+
+  let addedCount = 0;
+
+  await runTransaction(db, async (tx) => {
+    // 트랜잭션은 읽기를 전부 쓰기보다 먼저 해야 한다
+    const [playlistSnap, ...itemSnaps] = await Promise.all([
+      tx.get(playlistRef),
+      ...itemRefs.map((ref) => tx.get(ref)),
+    ]);
+
+    const fresh = unique
+      .map((track, i) => ({ track, ref: itemRefs[i], snap: itemSnaps[i] }))
+      .filter(({ snap }) => !snap.exists());
+
+    addedCount = fresh.length;
+
+    // 전부 이미 담겨 있으면 아무것도 쓰지 않는다 — updatedAt만 올리면 목록 정렬(updatedAt desc)이
+    // 흔들리고, 커버가 비어 있을 때 담지도 않은 곡이 커버가 된다("첫 곡이 커버" 계약 위반).
+    // 아래 fresh[0] 접근이 안전한 것도 이 가드 덕분이다.
+    if (addedCount === 0) return;
+
+    const playlist = playlistSnap.exists() ? (playlistSnap.data() as SharedPlaylist) : null;
+
+    if (playlist) {
+      tx.update(playlistRef, {
+        name: playlist.name || playlistName,
+        updatedAt: now,
+        trackCount: (playlist.trackCount ?? 0) + addedCount,
+        coverVideoId: playlist.coverVideoId ?? fresh[0].track.videoId,
+      });
+    } else {
+      const created: SharedPlaylist = {
+        id: playlistId,
+        name: playlistName,
+        createdBy: uid,
+        createdAt: now,
+        updatedAt: now,
+        trackCount: addedCount,
+        coverVideoId: fresh[0].track.videoId,
+      };
+      tx.set(playlistRef, created);
+    }
+
+    fresh.forEach(({ track, ref }, i) => {
+      const item: SharedPlaylistItem = {
+        videoId: track.videoId,
+        title: track.title,
+        artist: track.artist,
+        sourceDateKey: track.dateKey,
+        recommendedByUid: track.uid,
+        recommendedByNickname: track.nickname,
+        embeddable: track.embeddable,
+        addedByUid: uid,
+        addedAt: now,
+        // 담은 순간의 epoch + 인덱스 — 같은 배치 안의 순서를 보존한다
+        order: now + i,
+      };
+      tx.set(ref, item);
+    });
+  });
+
+  return { playlistId, addedCount };
 }
