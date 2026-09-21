@@ -56,6 +56,9 @@ jobs:
       - run: npm --prefix apps/web run test:browser
         env:
           PWA_TEST_BACKEND: '1'
-      - name: 종료
+      - name: 비밀값 제외 실패 진단
+        if: failure()
+        run: node tests/fixtures/redact-log.mjs "$RUNNER_TEMP/supabase-start.log" "$RUNNER_TEMP/edge.log"
+      - name: 로컬 컨테이너 종료
         if: always()
         run: apps/web/node_modules/.bin/supabase stop --workdir scratch/supabase-ci --no-backup > /dev/null 2>&1 || true

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Action, Video } from "../../../packages/domain/index";
+import { CommandError } from "../../../packages/domain/index";
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
@@ -56,13 +57,13 @@ export async function command<
     body: { action, payload, requestId },
   });
   if (error) {
-    let message = "연결이 원활하지 않아요. 입력은 유지되니 다시 시도해 주세요.";
+    let code: unknown = "UNAVAILABLE";
     try {
-      message = (await error.context.json()).message || message;
+      code = (await error.context.json()).code;
     } catch {
       /* 응답이 없으면 입력을 보존한다. */
     }
-    throw new Error(message);
+    throw new CommandError(code);
   }
   return data as T;
 }

@@ -44,7 +44,7 @@ export function clients(settings = localSettings()) {
     if (created.error) throw new Error("로컬 사용자 fixture 생성 실패");
     const client = createClient(settings.API_URL, settings.ANON_KEY, options);
     const login = await client.auth.signInWithPassword({ email, password });
-    if (login.error) throw new Error("로컬 인증 fixture 실패");
+    if (login.error) throw new Error(`로컬 인증 fixture 실패: ${login.error.code} (${login.error.status})`);
     if (google) {
       const updated = await admin.auth.admin.updateUserById(
         created.data.user.id,

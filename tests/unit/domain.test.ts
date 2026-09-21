@@ -5,8 +5,16 @@ import {
   todayKey,
   validDate,
   validatePayload,
+  errorCode,
+  CommandError,
 } from "../../packages/domain/index";
 describe("순수 공용 계약", () => {
+  it("알 수 없는 오류는 입력 오류로 오인하지 않는다", () => {
+    expect(errorCode("database disconnected")).toBe("UNAVAILABLE");
+    expect(errorCode("toString")).toBe("UNAVAILABLE");
+    expect(new CommandError("TODAY_ONLY").code).toBe("TODAY_ONLY");
+    expect(() => validatePayload("__proto__", {})).toThrow();
+  });
   it("KST 자정", () => {
     expect(todayKey(new Date("2026-09-21T14:59:59Z"))).toBe("2026-09-21");
     expect(todayKey(new Date("2026-09-21T15:00:00Z"))).toBe("2026-09-22");

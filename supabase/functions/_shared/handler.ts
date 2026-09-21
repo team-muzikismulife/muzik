@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.116.0";
 import {
   UUID,
+  ERROR_MESSAGES,
+  errorCode,
   validatePayload,
   type Video,
 } from "../../../packages/domain/index.ts";
@@ -12,20 +14,7 @@ const service = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
 const publicClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-export const messages: Record<string, string> = {
-  FORBIDDEN: "이 팀에 참여한 계정인지 확인해 주세요.",
-  NOT_FOUND: "팀 또는 곡을 찾을 수 없어요.",
-  ROOM_FULL: "팀 정원 30명이 모두 찼어요.",
-  TODAY_ONLY: "오늘 등록한 내 곡만 변경할 수 있어요.",
-  HIDDEN_TRACK: "운영자가 숨긴 곡은 변경할 수 없어요.",
-  ALREADY_EXISTS: "오늘은 이미 곡을 등록했어요.",
-  REQUEST_CONFLICT: "요청 내용이 바뀌었어요. 다시 시도해 주세요.",
-  RATE_LIMITED: "요청이 많아요. 잠시 후 다시 시도해 주세요.",
-  VIDEO_UNAVAILABLE: "재생 가능한 공개 영상을 확인해 주세요.",
-  UNAVAILABLE: "연결이 원활하지 않아요. 입력은 유지되니 다시 시도해 주세요.",
-  INVALID_INPUT: "입력값을 확인해 주세요.",
-  UNAUTHENTICATED: "Google 로그인이 필요해요.",
-};
+export const messages = ERROR_MESSAGES;
 export function fail(code: string): never {
   throw new Error(code);
 }
@@ -33,7 +22,7 @@ export async function rpc(name: string, args: Record<string, unknown>) {
   const { data, error } = await service.rpc(name, args);
   if (error)
     fail(
-      messages[error.message]
+      Object.hasOwn(messages, error.message)
         ? error.message
         : ["22P02", "23514", "23502"].includes(error.code)
           ? "INVALID_INPUT"
@@ -136,10 +125,7 @@ export function createHandler(options: {
           : await rpc("muzik_mutate", { ...args, p_metadata: metadata });
       return new Response(JSON.stringify(result), { headers });
     } catch (error) {
-      const code =
-        error instanceof Error && messages[error.message]
-          ? error.message
-          : "UNAVAILABLE";
+      const code = errorCode(error instanceof Error ? error.message : null);
       const status =
         code === "UNAUTHENTICATED"
           ? 401

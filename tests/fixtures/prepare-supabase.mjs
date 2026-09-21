@@ -5,6 +5,10 @@ const target = path.join(root, "scratch/supabase-ci/supabase");
 await fs.mkdir(path.join(target, "migrations"), { recursive: true });
 let config = await fs.readFile(path.join(root, "supabase/config.toml"), "utf8");
 config = config.replace(
+  "[auth.email]\nenable_signup = false",
+  "[auth.email]\nenable_signup = true",
+);
+config = config.replace(
   "[functions.muzik]",
   '[functions.muzik]\nentrypoint = "../../../tests/fixtures/edge.ts"',
 );

@@ -5,6 +5,7 @@ export const LIMITS = {
   members: 30,
 } as const;
 export { themeFor } from "./themes.ts";
+export { CommandError, ERROR_MESSAGES, errorCode } from "./errors.ts";
 export const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -107,7 +108,7 @@ export function validatePayload(
     },
     deleteTrack: { roomId: (v) => UUID.test(v), dateKey: validDate },
   };
-  const schema = rules[action];
+  const schema = Object.hasOwn(rules, action) ? rules[action] : undefined;
   if (!schema || Object.keys(value).length !== Object.keys(schema).length)
     throw new Error("입력값을 확인해 주세요.");
   const result: Record<string, string> = {};
