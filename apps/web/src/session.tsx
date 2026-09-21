@@ -20,23 +20,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabase) return;
     let active = true;
+    let authEventReceived = false;
+    let currentUid: string | undefined;
+    const applySession = (next: Session | null) => {
+      if (!active) return;
+      if (currentUid !== next?.user.id) query.clear();
+      currentUid = next?.user.id;
+      setSession(next);
+      setLoading(false);
+    };
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, next) => {
-        if (active) {
-          setSession((previous) => {
-            if (previous?.user.id !== next?.user.id) query.clear();
-            return next;
-          });
-          setLoading(false);
-        }
+        authEventReceived = true;
+        applySession(next);
       },
     );
     void supabase.auth.getSession().then(({ data }) => {
-      if (active) {
-        setSession(data.session);
-        setLoading(false);
-      }
-    });
+      if (!authEventReceived) applySession(data.session);
+    }).catch(() => { if (!authEventReceived) applySession(null); });
     return () => {
       active = false;
       listener.subscription.unsubscribe();

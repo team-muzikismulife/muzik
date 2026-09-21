@@ -11,7 +11,7 @@ async function checkSource(directory){
       for(const match of content.matchAll(/(?:from\s*|import\s*\(?\s*)['"]([^'"]+)['"]/g)){
         const specifier=match[1];
         const resolved=specifier.startsWith('.')?path.relative(root,path.resolve(path.dirname(file),specifier)).replaceAll('\\','/'):specifier;
-        if(/^(?:legacy|tests|examples|firebase|expo)(?:\/|$|-)/.test(resolved))throw new Error(`운영 import 경계 위반: ${path.relative(root,file)}`);
+        if(/^(?:legacy|tests|examples|firebase|expo|react-native)(?:\/|$|-)/.test(resolved))throw new Error(`운영 import 경계 위반: ${path.relative(root,file)}`);
       }
     }
   }
@@ -20,6 +20,6 @@ for(const directory of ['apps/web/src','packages/domain','supabase/functions'])a
 const files = await fs.readdir('dist/assets');
 for (const file of files.filter(file => file.endsWith('.js'))) {
   const text = await fs.readFile(`dist/assets/${file}`, 'utf8');
-  if (/firebaseapp\.com|firestore\.googleapis|expo-router|ReactNative|YOUTUBE_API_KEY|SUPABASE_SERVICE_ROLE_KEY|mock-preview-room|검증용 음악|x-muzik-test-video-fail/.test(text)) throw new Error(`금지된 플랫폼/비밀키/fixture 참조: ${file}`);
+  if (/firebaseapp\.com|firestore\.googleapis|expo-router|YOUTUBE_API_KEY|SUPABASE_SERVICE_ROLE_KEY|mock-preview-room|검증용 음악|x-muzik-test-video-fail/.test(text)) throw new Error(`금지된 플랫폼/비밀키/fixture 참조: ${file}`);
 }
 console.log('PASS 새 번들 Firebase/Expo/서버 키 참조 없음');
