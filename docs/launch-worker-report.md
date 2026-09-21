@@ -8,11 +8,11 @@
 - 자동 영상 미리보기/역순 응답 방지, 사용자·팀·날짜·추천별 초안, 요청 원문과 ID를 보존하는 저장 재시도, gateway401 재로그인 안내, 자정/오프라인 안전 처리.
 - 추천 UUID 기반 IFrame 플레이어와 연속 재생/마지막 종료/연속 오류 정지, 삭제·숨김 큐 갱신. YouTube 외부 열기 병행.
 - 곡 더보기, 개인 숨김/복원, 실제 DB 신고 접수, 닉네임, Web Share/복사, 로그아웃 데이터 정리.
-  -14일 이후 기록 조회·스크롤 복귀,360/390px·큰 글자·입력 공간, WOFF2와 화면 분리 로드.
+- 14일 이후 기록 조회·스크롤 복귀,360/390px·큰 글자·입력 공간, WOFF2와 화면 분리 로드.
 
 ## 검증과 한계
 
-- 9f7e0c2: [PWA CI](https://github.com/team-muzikismulife/muzik/actions/runs/35603155298) success, unit16/DB·Edge18묶음/연결 브라우저7 PASS. [Legacy CI](https://github.com/team-muzikismulife/muzik/actions/runs/35603155126) success. 이 후 최종 보완의 CI는 PR 최신 체크 기준.
+- 6e0a429: [PWA CI](https://github.com/team-muzikismulife/muzik/actions/runs/35604917608) success, unit16/DB·Edge18묶음/연결 브라우저8 PASS. 지난 신규 초안 이동 확인·공유 취소·붙여넣기 실패·이미지 실패 화면 포함. 이전 [Legacy CI](https://github.com/team-muzikismulife/muzik/actions/runs/35603155126) success. 이후 최종 보완의 CI는 PR 최신 체크 기준.
 - 실제 로컬 Postgres/Auth/Edge/Realtime를 CI에서 사용한다. Google provider claim·영상 정보·YouTube 플레이어 이벤트만 테스트 fixture. 실제 OAuth/음악 재생/실기기 검증으로 보지 않는다.
 - WOFF2 두 파일1,604,188bytes, 기존3,158,056bytes 대비49.2% 감소. 연결 빌드 최대 청크 약287KB로500KB 경고 해소. 설치 캐시는 정적 파일만 유지한다.
 - 숨긴 곡 전체 복원 후 잘못 남던 되돌리기 안내를 제거하고 긴 제목에 넓은 줄을 제공했다. 기록 추가 조회 실패 시 이미 받은 목록을 유지한다.

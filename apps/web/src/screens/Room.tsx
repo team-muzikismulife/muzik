@@ -289,7 +289,7 @@ function Feed({
             >
               <Pencil size={18} />내 곡 수정
             </Link>
-          ) : !mine && visible.length > 0 ? (
+          ) : date === today && !mine && visible.length > 0 ? (
             <Link
               className={s.secondary}
               to={`/room/${roomId}/playlist/${date}`}

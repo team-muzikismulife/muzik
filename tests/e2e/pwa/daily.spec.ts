@@ -326,6 +326,10 @@ test.describe("일상 사용 경계", () => {
         exact: true,
       });
       await expect(player.getByRole("status").first()).toHaveText("재생 중");
+      await t.page.screenshot({
+        path: testInfo.outputPath("daily-player-active-390.png"),
+        fullPage: true,
+      });
       await t.page.evaluate(() => (window as any).__ytFixture.emit(0));
       await expect(
         player.getByText("두번째님의 추천", { exact: true }),
@@ -399,9 +403,9 @@ test.describe("일상 사용 경계", () => {
         d.setUTCDate(d.getUTCDate() - i - 1);
         return d.toISOString().slice(0, 10);
       });
-      const tracks = dates.map((date) => ({
+      const tracks = dates.map((date, index) => ({
         room_id: t.room.roomId,
-        user_id: t.a.id,
+        user_id: index === 0 ? t.b.id : t.a.id,
         date_key: date,
         video_id: "dQw4w9WgXcQ",
         title: `지난 기록 ${date}`,
@@ -471,12 +475,24 @@ test.describe("일상 사용 경계", () => {
       await expect(
         t.page.getByRole("article", { name: "바뀐이름님의 추천", exact: true }),
       ).toBeVisible();
+      await expect(
+        t.page
+          .getByRole("article", { name: "바뀐이름님의 추천", exact: true })
+          .getByRole("button", { name: "더보기", exact: true }),
+      ).toHaveCount(0);
       await t.page
         .getByRole("button", { name: "기록 목록으로 돌아가기" })
         .click();
       await expect
         .poll(() => t.page.evaluate(() => scrollY))
         .toBeGreaterThan(scroll - 80);
+      await t.page.goto(`/room/${t.room.roomId}?date=${dates[0]}`);
+      await expect(
+        t.page.getByRole("article", { name: "두번째님의 추천", exact: true }),
+      ).toBeVisible();
+      await expect(
+        t.page.getByRole("link", { name: "모아듣기", exact: true }),
+      ).toHaveCount(1);
       await t.page.getByRole("link", { name: "MUZIK 홈", exact: true }).click();
       await expect(
         t.page.getByText("아직 등록 전", { exact: false }).first(),

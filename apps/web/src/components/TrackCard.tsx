@@ -55,53 +55,55 @@ export function TrackCard({
             <span className={s.avatar}>{nickname.slice(0, 1)}</span>
             <span>{nickname}</span>
           </div>
-          <Menu label="더보기">
-            {(close) => (
-              <>
-                {mine && editable && (
-                  <>
-                    <Link
-                      to={`/room/${roomId}/track/edit?date=${track.date_key}&track=${track.id}`}
-                      onClick={close}
-                    >
-                      <Pencil size={16} />내 곡 수정
-                    </Link>
-                    <button
-                      disabled={remove.isPending}
-                      onClick={() => {
-                        close();
-                        void deleteTrack();
-                      }}
-                    >
-                      <Trash2 size={16} />내 곡 삭제
-                    </button>
-                  </>
-                )}
-                {!mine && (
-                  <>
-                    <button
-                      onClick={() => {
-                        close();
-                        onHide(track.id);
-                      }}
-                    >
-                      <EyeOff size={16} />
-                      나에게 숨기기
-                    </button>
-                    <button
-                      onClick={() => {
-                        close();
-                        setReportOpen(true);
-                      }}
-                    >
-                      <Flag size={16} />
-                      {reported ? "신고 접수됨" : "신고하기"}
-                    </button>
-                  </>
-                )}
-              </>
-            )}
-          </Menu>
+          {(!mine || editable) && (
+            <Menu label="더보기">
+              {(close) => (
+                <>
+                  {mine && editable && (
+                    <>
+                      <Link
+                        to={`/room/${roomId}/track/edit?date=${track.date_key}&track=${track.id}`}
+                        onClick={close}
+                      >
+                        <Pencil size={16} />내 곡 수정
+                      </Link>
+                      <button
+                        disabled={remove.isPending}
+                        onClick={() => {
+                          close();
+                          void deleteTrack();
+                        }}
+                      >
+                        <Trash2 size={16} />내 곡 삭제
+                      </button>
+                    </>
+                  )}
+                  {!mine && (
+                    <>
+                      <button
+                        onClick={() => {
+                          close();
+                          onHide(track.id);
+                        }}
+                      >
+                        <EyeOff size={16} />
+                        나에게 숨기기
+                      </button>
+                      <button
+                        onClick={() => {
+                          close();
+                          setReportOpen(true);
+                        }}
+                      >
+                        <Flag size={16} />
+                        {reported ? "신고 접수됨" : "신고하기"}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </Menu>
+          )}
         </div>
         <div
           className={`${s.trackSummary} ${track.title.length > 80 ? s.longTitle : ""}`}
