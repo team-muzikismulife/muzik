@@ -1,5 +1,26 @@
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
+const http = require('node:http');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+
+async function staticServer(root) {
+  const url = new URL(root);
+  assert(['localhost', '127.0.0.1'].includes(url.hostname));
+  const directory = path.resolve(process.env.TEST_STATIC_DIR);
+  const types = { '.js': 'application/javascript', '.html': 'text/html', '.css': 'text/css', '.png': 'image/png', '.ttf': 'font/ttf' };
+  const server = http.createServer(async (req, res) => {
+    try {
+      const requested = path.resolve(directory, '.' + decodeURIComponent(new URL(req.url, root).pathname));
+      if (!requested.startsWith(directory + path.sep) && requested !== directory) { res.writeHead(403).end(); return; }
+      const file = await fs.stat(requested).then(stat => stat.isFile() ? requested : path.join(directory, 'index.html')).catch(() => path.join(directory, 'index.html'));
+      res.setHeader('Content-Type', types[path.extname(file)] || 'application/octet-stream');
+      res.end(await fs.readFile(file));
+    } catch { res.writeHead(500).end(); }
+  });
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(Number(url.port), url.hostname, resolve); });
+  return server;
+}
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const a = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['clipboard-read', 'clipboard-write'] });
@@ -8,7 +29,9 @@ const { chromium } = require('playwright');
   const errors = [];
   for (const p of [first,second]) p.on('pageerror', e => errors.push(e.message));
   const root = process.env.TEST_WEB_URL || 'http://localhost:8083';
+  let server;
   try {
+    if (process.env.TEST_STATIC_DIR) server = await staticServer(root);
     await first.goto(root);
     await first.getByRole('button', { name: '새로운 팀 개설하기' }).click();
     await first.getByLabel('팀 이름 입력').fill('브라우저 검증 모임');
@@ -96,5 +119,8 @@ const { chromium } = require('playwright');
     console.log((await first.locator('body').innerText()).slice(0,3500));
     await first.screenshot({path:'docs/beta-browser-failure.png',fullPage:true});
     throw e;
-  } finally { await browser.close(); }
+  } finally {
+    await browser.close();
+    if (server) await new Promise(resolve => server.close(resolve));
+  }
 })().catch(e => { console.error(e); process.exitCode = 1; });

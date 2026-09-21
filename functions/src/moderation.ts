@@ -70,7 +70,8 @@ export const moderateTrack = onCall(callableOptions, async request => {
     const day = track ? await readDay(tx, roomId, track.dateKey) : undefined;
     if (input.action === 'hide' && track && !track.hidden && day) {
       tx.set(db.doc(`moderationArchive/${hash(`${roomId}:${trackId}`)}`), { track, roomId, trackId, hiddenBy: uid, hiddenAt: Date.now() });
-      const tombstone: Track = { ...track, title: '', artist: '', comment: '', videoId: '', hidden: true, unavailable: true, embeddable: false, durationSec: 0 };
+      // 과거 클라이언트의 추가 필드(원문 URL 등)는 archive에만 남긴다.
+      const tombstone: Track = { uid: track.uid, nickname: track.nickname, dateKey: track.dateKey, order: track.order, createdAt: track.createdAt, metaRefreshedAt: track.metaRefreshedAt ?? 0, title: '', artist: '', comment: '', videoId: '', hidden: true, unavailable: true, embeddable: false, durationSec: 0 };
       tx.set(trackRef, tombstone);
       writeDay(tx, day, track.dateKey, day.tracks.filter(t => t.id !== trackId));
     }

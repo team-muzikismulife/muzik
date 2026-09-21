@@ -8,6 +8,15 @@
 - 이번 재검사: npm run check:production은 EXPO_PUBLIC_RECAPTCHA_SITE_KEY 누락으로 실패. 기존 요금제/로그인 상태 기록은 외부 작업 직전 다시 확인하며 결제 변경이나 공개 배포를 자동 실행하지 않는다.
 
 ## MUZIK-BETA-02 (2026-09-21)
+최종 d9f7098의 Node22 CI도 통과: https://github.com/team-muzikismulife/muzik/actions/runs/35564751805 (총괄 로그 검토 확인).
+
+## MUZIK-BETA-03 계획 (2026-09-21)
+1. npm audit JSON/잠금파일 경로 및 공식 advisory로 의존성 영향을 운영 서버/웹 번들/빌드 도구로 구분한다. 호환 patch/minor만 선별하고 강제 major 업그레이드는 하지 않는다.
+2. 기존 Spark 스키마와 신규 Functions 계약 차이를 확인한다. 명시적인 팀 ID와 프로젝트를 받는 읽기 전용 사전검사, 에뮬레이터 legacy fixture 및 변경 전후 검증을 추가한다. 운영 DB 전체 읽기/수정/자동 마이그레이션 금지.
+3. 기존 접근으로 Vercel 실패 로그를 한 번 확인한다. 로그인 장애이면 설정을 우회하지 않고 근거와 남은 작업을 기록한다.
+4. 필요한 타입/Functions/서버 회귀 및 브라우저 검증, PR40 최신 HEAD CI를 확인하고 report를 원래 checkout에 동기화한다. 다른 원본 파일과 총괄 문서는 수정하지 않는다.
+
+## MUZIK-BETA-02 실행
 1. 저장된 요청 결과를 영상 API 호출보다 먼저 조회한다. UID/작업/requestId와 입력 digest를 확인하고 기존 성공 응답만 재생한다. 새 요청은 멤버십/요청 제한/영상 검증과 커밋 시 트랜잭션 재검사를 유지한다.
 2. 에뮬레이터 전용 영상 실패 제어로 등록/수정 성공 후 외부 장애, 같은 ID 입력 변경, 새 ID 오류 및 집계/이벤트 중복 없음을 검사한다.
 3. origin/dev의 기존 팀 작업과 현재 변경을 비교해 별도 codex/ worktree에서 파일별 통합한다. 원래 checkout의 미커밋 파일은 유지한다. 베타에 필요한 파일만 명시적으로 stage하고 dev 대상 draft PR을 만든다.

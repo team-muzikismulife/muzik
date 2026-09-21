@@ -1,5 +1,17 @@
 # MUZIK 베타 구현 보고
 
+## MUZIK-BETA-03 검증 보고 (2026-09-21)
+- 실사용 모바일 웹 기준으로 의존성 감사와 기존 Spark 데이터 호환성 검증을 진행했다. 작업 위치는 scratch/beta-integration, codex/mobile-web-beta, dev 대상 draft PR40이다. 원본 사용자 checkout 소스는 변경하지 않았다.
+- npm audit 전체: 앱/도구 **45(high15/moderate30)→28(high6/moderate22)**, Functions **13(high1/moderate12)→9(high0/moderate9)**. omit=dev는 각각22/9. audit 숫자는 상위 의존성 전파도 포함하며 실제 취약 경로 개수가 아니다. qs/Express/XML parser/PostCSS 및 도구의 호환 패치를 적용했다. force/Expo·RN·Admin major 업데이트는 하지 않았다.
+- Navigation core7.22.1 갱신은 Expo Router5의 미선언 query-string 참조로 실제 웹 export가 실패하여 채택하지 않았다. 호환 버전7.21.5로 고정하고 export/정적 번들 브라우저 회귀를 다시 통과했다. 잔여 decode-uri-component는 웹 의존성이나 현재 Expo query 파싱은 URL.searchParams를 사용한다. 취약 함수까지 외부 입력이 도달한다고 단정하지 않았으며 전체 링크 경로 회귀/리뷰가 남았다.
+- 서버 잔여 uuid 경고는 v3/v5/v6 외부 버퍼 API에 관한 것이며 설치된 SDK 사용처는 v4()였다. Metro image-size는 자산 빌드 경로, CLI import/parser는 개발 도구 경로로 구분했다. 면제/무위험 판정이 아닌 후속 검토 조건을 docs/dependency-audit.md에 명시했다.
+- 읽기 전용 scripts/legacy-preflight.mjs 추가: 명시한 방1개, 컬렉션별1000개 제한 및 초과 blocker, 프로젝트/loopback 가드, 기본 운영 접근 거부, 원문 미출력. memberCount/UID·닉네임/곡 날짜·순서·메타/days·theme/숨김 원문을 검사한다. 실제 운영 DB 조회·이관·쓰기 없음.
+- 기존 Spark 형태 fixture에 대한 **legacy 6개 PASS**, 기존 서버 권한/동시성/멱등 **31개 PASS**, 모두 Node22.23.2 에뮬레이터. 기존 과거 날짜/주제/순서 보존, 재가입 닉네임, 신고와 archive 접근 차단까지 확인했다. 숨김 tombstone을 allowlist로 바꿔 예전 알 수 없는 필드가 공개 문서에 남지 않도록 수정했으며 archive 원문은 보존했다.
+- 타입/Functions 빌드, 웹 export PASS. 실제 export한 정적 dist로 두 브라우저 가입/초대/저장 실패 후 재시도/실시간 표시/재방문/개인숨김/닉네임/신고/날짜 플리 회귀 PASS. 375/390/1280px, 실제 외부 썸네일 로딩, 페이지 JS 오류0. 영상 API는 내부 fixture이며 실 YouTube/App Check 성공 근거가 아니다.
+- CI에 웹 export와 legacy 6개 검사를 추가했다. 직전 d9f7098의 실제 Node22 CI PASS는 https://github.com/team-muzikismulife/muzik/actions/runs/35564751805 이며, 이번 변경의 최신 HEAD CI는 push 후 별도로 확인한다.
+- Vercel 기존 실패 deployment의 inspect --logs는 자격증명이 없어 인증 안내로 전환되어 즉시 취소했다. 로그인 재시도/키 입력/임시 프로젝트/수동 배포 없음. 원격 실패 원인은 로그로 미확인이고 로컬 export 회귀와 같은 원인으로 단정하지 않는다.
+- **공개 모집/운영 배포는 아직 보류**: 남은 의존성 경로 검토, 승인된 기존 데이터 사전검사·복구, 실제 Firebase/YouTube/App Check 종단검증, Vercel 설정/로그, Safari·카카오 실기기 검증 필요. main merge/결제 변경/외부 배포 없음.
+
 ## MUZIK-BETA-02 완료 보고 (2026-09-21)
 - 최신 목표는 실사용 모바일 웹이다. 발표용 신규 작업 없음. 내부 영상 fixture만 사용한다.
 - saveTrack 성공 결과를 외부 API 이전에 조회하고, API 실패 시 동시 커밋 여부를 다시 확인하도록 수정했다. auth/membership 및 입력 digest 검사 유지.

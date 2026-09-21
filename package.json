@@ -31,7 +31,7 @@
     "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.0",
     "firebase": "^11.6.0",
-    "qs": "^6.15.3",
+    "qs": "^6.16.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.2",
@@ -43,6 +43,12 @@
     "react-native-youtube-iframe": "^2.3.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.3"
+  },
+  "overrides": {
+    "@react-navigation/core": "7.21.5",
+    "@expo/metro-config": {
+      "postcss": "^8.5.23"
+    }
   },
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
