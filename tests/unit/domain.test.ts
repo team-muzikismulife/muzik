@@ -62,6 +62,7 @@ describe("순수 공용 계약", () => {
   it("선택 한마디30자", () => {
     expect(
       validatePayload("registerTrack", {
+        dateKey: todayKey(),
         roomId: crypto.randomUUID(),
         videoId: "dQw4w9WgXcQ",
         comment: "",
@@ -69,6 +70,7 @@ describe("순수 공용 계약", () => {
     ).toBe("");
     expect(() =>
       validatePayload("registerTrack", {
+        dateKey: todayKey(),
         roomId: crypto.randomUUID(),
         videoId: "dQw4w9WgXcQ",
         comment: "가".repeat(31),

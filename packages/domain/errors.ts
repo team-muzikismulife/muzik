@@ -4,6 +4,7 @@ export const ERROR_MESSAGES = {
   ROOM_FULL: "팀 정원 30명이 모두 찼어요.",
   TODAY_ONLY: "오늘 등록한 내 곡만 변경할 수 있어요.",
   HIDDEN_TRACK: "운영자가 숨긴 곡은 변경할 수 없어요.",
+  TRACK_CHANGED: "곡이 삭제되거나 다시 등록됐어요. 현재 곡을 확인해 주세요.",
   ALREADY_EXISTS: "오늘은 이미 곡을 등록했어요.",
   REQUEST_CONFLICT: "요청 내용이 바뀌었어요. 다시 시도해 주세요.",
   RATE_LIMITED: "요청이 많아요. 잠시 후 다시 시도해 주세요.",
@@ -15,7 +16,7 @@ export const ERROR_MESSAGES = {
 export type ErrorCode = keyof typeof ERROR_MESSAGES;
 export function errorCode(value: unknown): ErrorCode {
   return typeof value === "string" && Object.hasOwn(ERROR_MESSAGES, value)
-    ? value as ErrorCode
+    ? (value as ErrorCode)
     : "UNAVAILABLE";
 }
 export class CommandError extends Error {

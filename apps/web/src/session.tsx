@@ -8,6 +8,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./backend";
+import { clearUserLocal } from "./local";
 const Context = createContext<{
   session: Session | null;
   loading: boolean;
@@ -24,8 +25,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let currentUid: string | undefined;
     const applySession = (next: Session | null) => {
       if (!active) return;
-      if (currentUid !== next?.user.id) query.clear();
-      currentUid = next?.user.id;
+      if (currentUid !== next?.user.id) {
+        query.clear();
+        if (currentUid && next) clearUserLocal(currentUid);
+      }
+      currentUid = next?.user.id ?? currentUid;
       setSession(next);
       setLoading(false);
     };
@@ -35,9 +39,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         applySession(next);
       },
     );
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!authEventReceived) applySession(data.session);
-    }).catch(() => { if (!authEventReceived) applySession(null); });
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!authEventReceived) applySession(data.session);
+      })
+      .catch(() => {
+        if (!authEventReceived) applySession(null);
+      });
     return () => {
       active = false;
       listener.subscription.unsubscribe();
@@ -48,8 +57,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase!.auth.signOut({ scope: "local" });
     if (error) throw new Error("로그아웃하지 못했어요. 다시 시도해 주세요.");
     query.clear();
-    for (const key of Object.keys(localStorage))
-      if (uid && key.startsWith(`muzik:${uid}:`)) localStorage.removeItem(key);
+    if (uid) clearUserLocal(uid);
     setSession(null);
   };
   return (

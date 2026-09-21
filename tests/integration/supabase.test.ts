@@ -189,7 +189,12 @@ try {
     "INVALID_INPUT",
   );
   pass("본인 팀 닉네임 변경·타인 입력 차단");
-  const payload = { roomId, videoId: "dQw4w9WgXcQ", comment: "첫 추천" };
+  const payload = {
+    roomId,
+    dateKey: todayKey(),
+    videoId: "dQw4w9WgXcQ",
+    comment: "첫 추천",
+  };
   const requestId = crypto.randomUUID();
   const race = await Promise.all([
     ok(a, "registerTrack", payload, requestId),
@@ -260,7 +265,12 @@ try {
       .eq("user_id", a.id)
   ).data[0];
   const updateId = crypto.randomUUID();
-  const update = { ...payload, comment: "수정", dateKey: todayKey() };
+  const update = {
+    ...payload,
+    comment: "수정",
+    dateKey: todayKey(),
+    trackId: before.id,
+  };
   await ok(a, "updateTrack", update, updateId);
   await ok(a, "updateTrack", update, updateId, true);
   assert.equal(
@@ -282,11 +292,83 @@ try {
   await denied(
     a,
     "deleteTrack",
-    { roomId, dateKey: "2020-01-01" },
+    { roomId, dateKey: "2020-01-01", trackId: before.id },
     "TODAY_ONLY",
   );
   pass("수정 멱등·생성순서 보존·지난 날짜 거부");
-  await ok(b, "deleteTrack", { roomId, dateKey: todayKey() });
+  const bTrackId = bRaces.find((x) => x.status === 200)!.body.trackId;
+  await denied(
+    b,
+    "updateTrack",
+    { ...update, trackId: before.id },
+    "TRACK_CHANGED",
+  );
+  const reportId = crypto.randomUUID();
+  await ok(
+    b,
+    "reportTrack",
+    { roomId, trackId: before.id, reason: "부적절한 내용" },
+    reportId,
+  );
+  await ok(
+    b,
+    "reportTrack",
+    { roomId, trackId: before.id, reason: "부적절한 내용" },
+    reportId,
+  );
+  await ok(b, "reportTrack", {
+    roomId,
+    trackId: before.id,
+    reason: "다시 신고",
+  });
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from private.reports where reporter_id=$1 and track_id=$2",
+        [b.id, before.id],
+      )
+    ).rows[0].n,
+    1,
+  );
+  await denied(
+    a,
+    "reportTrack",
+    { roomId, trackId: before.id, reason: "본인" },
+    "FORBIDDEN",
+  );
+  await denied(
+    c,
+    "reportTrack",
+    { roomId, trackId: before.id, reason: "비회원" },
+    "FORBIDDEN",
+  );
+  assert((await b.client.schema("private").from("reports").select("*")).error);
+  pass("신고 접수 멱등·중복 방지·비공개·본인/비회원 거부");
+  await ok(b, "deleteTrack", {
+    roomId,
+    dateKey: todayKey(),
+    trackId: bTrackId,
+  });
+  const replacement = await ok(b, "registerTrack", payload);
+  assert.notEqual(replacement.trackId, bTrackId);
+  await denied(
+    b,
+    "deleteTrack",
+    { roomId, dateKey: todayKey(), trackId: bTrackId },
+    "TRACK_CHANGED",
+  );
+  await denied(
+    b,
+    "updateTrack",
+    { ...update, trackId: bTrackId },
+    "TRACK_CHANGED",
+  );
+  await ok(b, "deleteTrack", {
+    roomId,
+    dateKey: todayKey(),
+    trackId: replacement.trackId,
+  });
+  pass("삭제 후 재등록 고유 ID·이전 수정/삭제 요청 거부");
   assert.equal(
     (
       await a.client
@@ -306,7 +388,7 @@ try {
   await denied(
     a,
     "deleteTrack",
-    { roomId, dateKey: todayKey() },
+    { roomId, dateKey: todayKey(), trackId: before.id },
     "HIDDEN_TRACK",
   );
   pass("운영 숨김 슬롯 수정·삭제 금지");

@@ -28,6 +28,7 @@ export interface Member {
   joined_at: string;
 }
 export interface Track {
+  id: string;
   user_id: string;
   date_key: string;
   video_id: string;
@@ -44,7 +45,7 @@ export interface Day {
   cover_video_id: string | null;
 }
 export async function command<
-  T = { roomId: string; code?: string; dateKey?: string },
+  T = { roomId: string; code?: string; dateKey?: string; trackId?: string },
 >(
   action: Action,
   payload: Record<string, string>,
@@ -59,7 +60,10 @@ export async function command<
   if (error) {
     let code: unknown = "UNAVAILABLE";
     try {
-      code = (await error.context.json()).code;
+      code =
+        error.context?.status === 401
+          ? "UNAUTHENTICATED"
+          : (await error.context.json()).code;
     } catch {
       /* 응답이 없으면 입력을 보존한다. */
     }
@@ -94,7 +98,7 @@ export async function loadRoom(id: string, date: string) {
     supabase
       .from("tracks")
       .select(
-        "user_id,date_key,video_id,title,artist,comment,hidden,created_at",
+        "id,user_id,date_key,video_id,title,artist,comment,hidden,created_at",
       )
       .eq("room_id", id)
       .eq("date_key", date)
@@ -121,3 +125,43 @@ export async function loadRoom(id: string, date: string) {
   };
 }
 export type { Video };
+
+export async function loadTeamSummaries(uid: string, date: string) {
+  const teams = await loadTeams();
+  if (!supabase || !teams.length)
+    return teams.map((team) => ({ ...team, todayStatus: "아직 등록 전" }));
+  const { data, error } = await supabase
+    .from("tracks")
+    .select("room_id,hidden")
+    .eq("user_id", uid)
+    .eq("date_key", date)
+    .in(
+      "room_id",
+      teams.map((t) => t.id),
+    );
+  if (error) throw new Error("오늘 참여 상태를 불러오지 못했어요.");
+  return teams.map((team) => {
+    const track = data.find((t) => t.room_id === team.id);
+    return {
+      ...team,
+      todayStatus: track
+        ? track.hidden
+          ? "내 곡 숨김 처리됨"
+          : "오늘 등록 완료"
+        : "아직 등록 전",
+    };
+  });
+}
+export async function loadDays(room: string, before?: string): Promise<Day[]> {
+  if (!supabase) throw new Error("서비스 연결 준비 중이에요.");
+  let query = supabase
+    .from("days")
+    .select("date_key,theme_text,track_count,cover_video_id")
+    .eq("room_id", room)
+    .order("date_key", { ascending: false })
+    .limit(14);
+  if (before) query = query.lt("date_key", before);
+  const { data, error } = await query;
+  if (error) throw new Error("지난 기록을 불러오지 못했어요.");
+  return data;
+}

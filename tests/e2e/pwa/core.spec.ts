@@ -13,9 +13,13 @@ test("공개 화면·미연동·모바일 폭·manifest", async ({
     await expect(
       page.getByRole("heading", { name: "MUZIK", exact: true }),
     ).toBeVisible();
-    await page.locator("img").evaluateAll(async (images: HTMLImageElement[]) => {
-      await Promise.all(images.map((image) => image.decode().catch(() => undefined)));
-    });
+    await page
+      .locator("img")
+      .evaluateAll(async (images: HTMLImageElement[]) => {
+        await Promise.all(
+          images.map((image) => image.decode().catch(() => undefined)),
+        );
+      });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -81,9 +85,7 @@ test("두 사용자 실제 로컬 Supabase 핵심 흐름", async ({
     await first.getByLabel("팀 이름", { exact: true }).fill("함께 듣는 음악");
     await first.getByLabel("이 팀에서 쓸 닉네임").fill("대표");
     await first.getByRole("button", { name: "팀 개설하기" }).click();
-    await first
-      .getByRole("button", { name: "초대 링크 복사", exact: true })
-      .click();
+    await first.getByRole("button", { name: "초대하기", exact: true }).click();
     const invite = await first.evaluate(() => navigator.clipboard.readText());
     expect(invite).toMatch(/\/r\/[A-Z2-9]{6}$/);
     await first.getByRole("link", { name: "팀으로 이동" }).click();
@@ -105,7 +107,6 @@ test("두 사용자 실제 로컬 Supabase 핵심 흐름", async ({
     await first
       .getByLabel("YouTube 링크", { exact: true })
       .fill("https://youtu.be/dQw4w9WgXcQ");
-    await first.getByRole("button", { name: "영상 확인" }).click();
     await expect(
       first.getByRole("heading", { name: "검증용 음악" }),
     ).toBeVisible();
@@ -124,7 +125,7 @@ test("두 사용자 실제 로컬 Supabase 핵심 흐름", async ({
     await expect(first.getByLabel("추천하는 이유")).toHaveValue(
       "다 같이 듣고 싶은 곡",
     );
-    await first.getByRole("button", { name: "곡 등록하기" }).click();
+    await first.getByRole("button", { name: "저장 결과 확인" }).click();
     await expect(
       first.getByText("다 같이 듣고 싶은 곡", { exact: true }),
     ).toBeVisible();
@@ -145,8 +146,10 @@ test("두 사용자 실제 로컬 Supabase 핵심 흐름", async ({
       fullPage: true,
     });
     first.once("dialog", (dialog: any) => dialog.accept());
-    await first.getByLabel("내 곡 관리").click();
-    await first.getByRole("button", { name: "삭제", exact: true }).click();
+    await first.getByRole("button", { name: "더보기", exact: true }).click();
+    await first
+      .getByRole("button", { name: "내 곡 삭제", exact: true })
+      .click();
     await expect(
       second.getByText("수정한 추천 이유", { exact: true }),
     ).toHaveCount(0);

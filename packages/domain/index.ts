@@ -15,6 +15,7 @@ export type Action =
   | "joinRoom"
   | "getInvitePreview"
   | "updateNickname"
+  | "reportTrack"
   | "previewTrack"
   | "registerTrack"
   | "updateTrack"
@@ -62,7 +63,7 @@ export function safeReturnPath(value: string | null): string {
     const url = new URL(value, "https://muzik.invalid");
     if (url.origin !== "https://muzik.invalid" || !value.startsWith("/"))
       return "/";
-    return /^\/(?:$|room\/(?:create|join)$|r\/[A-HJ-NP-Z2-9]{6}$|room\/[0-9a-f-]{36}(?:\/playlist\/\d{4}-\d{2}-\d{2})?$)/i.test(
+    return /^\/(?:$|room\/(?:create|join)$|r\/[A-HJ-NP-Z2-9]{6}$|room\/[0-9a-f-]{36}(?:\/playlist\/\d{4}-\d{2}-\d{2}|\/track\/(?:new|edit)|\/members|\/history)?$)/i.test(
       url.pathname,
     )
       ? url.pathname + url.search
@@ -96,17 +97,28 @@ export function validatePayload(
       videoId: (v) => VIDEO_ID.test(v),
     },
     registerTrack: {
+      dateKey: validDate,
       roomId: (v) => UUID.test(v),
       videoId: (v) => VIDEO_ID.test(v),
       comment: (v) => v.length <= 30,
     },
     updateTrack: {
+      trackId: (v) => UUID.test(v),
       roomId: (v) => UUID.test(v),
       videoId: (v) => VIDEO_ID.test(v),
       comment: (v) => v.length <= 30,
       dateKey: validDate,
     },
-    deleteTrack: { roomId: (v) => UUID.test(v), dateKey: validDate },
+    deleteTrack: {
+      roomId: (v) => UUID.test(v),
+      dateKey: validDate,
+      trackId: (v) => UUID.test(v),
+    },
+    reportTrack: {
+      roomId: (v) => UUID.test(v),
+      trackId: (v) => UUID.test(v),
+      reason: (v) => v.length >= 1 && v.length <= 200,
+    },
   };
   const schema = Object.hasOwn(rules, action) ? rules[action] : undefined;
   if (!schema || Object.keys(value).length !== Object.keys(schema).length)
