@@ -5,7 +5,9 @@
 - saveTrack 성공 결과를 외부 API 이전에 조회하고, API 실패 시 동시 커밋 여부를 다시 확인하도록 수정했다. auth/membership 및 입력 digest 검사 유지.
 - 원본 checkout에서 등록/수정 성공 후 unavailable/invalid-argument/resource-exhausted 재시도, payload 변조, 신규 ID 실패, API/집계/이벤트 중복 없음까지 **31개 에뮬레이터 검사 PASS**(Node24). 이전 27개 기록을 대체하는 확장 검사다.
 - origin/dev b10f514 기준 별도 scratch/beta-integration worktree와 codex/mobile-web-beta 브랜치 생성. 원본 checkout의 미커밋 작업 보존. dev 날짜 훅/미션 스냅샷/구독 API/공동 플리 원본 소스 보존. 최신 demo 원격 PR39의 닉네임 표시와 캐시 초기화 수정을 선택 반영. 자세한 manifest는 통합 브랜치 docs/beta-integration.md.
-- 통합 브랜치 npm run lint 및 Functions 빌드 PASS. 통합본 31개 검사/브라우저 회귀/실제 Node22 GitHub CI는 아래 완료 기록으로 갱신 예정.
+- 통합 브랜치 npm run lint 및 Functions 빌드 PASS. 통합본 에뮬레이터 31개도 PASS. 두 브라우저 375/390px 및 desktop1280 회귀 PASS, 재입장 닉네임 변경 후 기존 곡/플리 표시 추가 확인. 첫 sandbox 실행은 외부 썸네일 로딩 시간 초과, 네트워크 허용 재실행에서 실제 썸네일 포함 PASS.
+- draft PR: https://github.com/team-muzikismulife/muzik/pull/40 (dev 대상, ea7cf0e). GitHub mergeable=true 확인, 원본 checkout 그대로. PR 생성 시 Actions 실행 목록은 비어 있었고 check-suite도 생성되지 않아 이 통합 브랜치 push에도 동일 CI를 실행하도록 보완한다. Node22 결과는 후속 갱신한다.
+- 기존 Vercel GitHub 연결이 PR Preview 빌드를 자동 시도하여 실패 상태를 기록했다: https://vercel.com/muzikismylife/dist/4CazQttkVMhTDGX6ATQ1Ns7L6eZa . 수동 배포/우회 프로젝트 생성은 하지 않았다. 실패 로그 접근 전 원인을 단정하지 않으며 production-only 설정이 아직 미확인인 근거다.
 - 운영 문서 GitHub 정상 인증 안내와 쓰기 중지→서버·인덱스→rules→웹→검증·개방→구버전 순서를 정정했다. 구버전 직접쓰기 클라이언트는 플래그를 따르지 않으므로 점검 rules가 필요함을 명시했다.
 - 의존성 설치가 기존 잠금파일의 취약점 경고(앱 45건, functions 13건)를 출력했다. 자동 major/force 변경은 하지 않았으며 출시 전 의존성 검토가 별도로 필요하다.
 - 이 단계에서 main merge/서버·rules·Vercel 배포/결제 변경 없음.
