@@ -41,7 +41,7 @@ jobs:
         with:
           deno-version: v2.x
       - run: npm --prefix apps/web ci
-      - run: deno check supabase/functions/muzik/index.ts
+      - run: deno check --config supabase/functions/deno.json supabase/functions/muzik/index.ts tests/fixtures/edge.ts
       - run: node tests/fixtures/prepare-supabase.mjs
       - name: 로컬 Supabase 시작 (키 출력 금지)
         run: apps/web/node_modules/.bin/supabase start --workdir scratch/supabase-ci > "$RUNNER_TEMP/supabase-start.log" 2>&1
