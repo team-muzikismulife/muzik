@@ -18,6 +18,7 @@ import { toMessage } from '@/lib/errors';
 import { fieldError, InviteCodeSchema, NicknameSchema } from '@/schemas';
 import { useSessionStore } from '@/store/session';
 import { toast } from '@/store/ui';
+import { firstRouteParam } from '@/lib/routeParams';
 
 /**
  * 코드로 입장 (모달 라우트) — 초대 링크(`muzik://r/{code}`)가 웹·Expo Go에서 안 열릴 때의 정공법.
@@ -27,11 +28,11 @@ import { toast } from '@/store/ui';
  */
 export default function JoinRoom() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ code?: string }>();
+  const params = useLocalSearchParams<{ code?: string | string[] }>();
   const lastNickname = useSessionStore((s) => s.lastNickname);
   const setLastNickname = useSessionStore((s) => s.setLastNickname);
 
-  const [code, setCode] = useState(params.code ?? '');
+  const [code, setCode] = useState(firstRouteParam(params.code) ?? '');
   const [nickname, setNickname] = useState(lastNickname ?? '');
   const [submitting, setSubmitting] = useState(false);
 

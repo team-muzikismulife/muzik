@@ -22,6 +22,8 @@ import { nicknameResolver } from '@/lib/displayName';
 import { useRoomStore } from '@/store/room';
 import { useConfigStore } from '@/store/config';
 import { toast } from '@/store/ui';
+import { firstRouteParam, isRouteDate, isRouteId } from '@/lib/routeParams';
+import { InvalidLink } from '@/components/InvalidLink';
 
 /**
  * 플레이리스트 상세 (Figma 4:1332) — 실데이터 구독 (M3)
@@ -38,8 +40,15 @@ function formatDate(dateKey: string): string {
   return `${Number(m)}월 ${Number(d)}일`;
 }
 
-export default function PlaylistDetail() {
-  const { id, dateKey } = useLocalSearchParams<{ id: string; dateKey: string }>();
+export default function PlaylistRoute() {
+  const params = useLocalSearchParams<{ id: string; dateKey: string }>();
+  const id = firstRouteParam(params.id);
+  const dateKey = firstRouteParam(params.dateKey);
+  if (!isRouteId(id) || !dateKey || !isRouteDate(dateKey)) return <InvalidLink />;
+  return <PlaylistDetail id={id} dateKey={dateKey} />;
+}
+
+function PlaylistDetail({ id, dateKey }: { id: string; dateKey: string }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [queueIndex, setQueueIndex] = useState(0);

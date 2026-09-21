@@ -18,6 +18,8 @@ import { useSessionStore } from '@/store/session';
 import { useRoomStore } from '@/store/room';
 import { isMockPreviewEnabled } from '@/lib/mockPreview';
 import type { Member, Track } from '@/types/models';
+import { firstRouteParam, isRouteDate, isRouteId } from '@/lib/routeParams';
+import { InvalidLink } from '@/components/InvalidLink';
 
 /**
  * 메인 홈 (Figma 157:744) — 실데이터 구독 (M2)
@@ -36,8 +38,15 @@ const LIST_CONTENT = {
   paddingBottom: spacing.xxl,
 };
 
-export default function RoomHome() {
-  const { id, date } = useLocalSearchParams<{ id: string; date?: string }>();
+export default function RoomHomeRoute() {
+  const params = useLocalSearchParams<{ id: string; date?: string | string[] }>();
+  const id = firstRouteParam(params.id);
+  const date = firstRouteParam(params.date);
+  if (!isRouteId(id) || (date !== undefined && !isRouteDate(date))) return <InvalidLink />;
+  return <RoomHome id={id} date={date} />;
+}
+
+function RoomHome({ id, date }: { id: string; date?: string }) {
   const router = useRouter();
   const hidden = useHiddenTracks(s => s.keys);
   const myUid = useSessionStore((s) => s.uid);

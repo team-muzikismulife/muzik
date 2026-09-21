@@ -1,5 +1,23 @@
 # MUZIK 베타 구현 보고
 
+## MUZIK-BETA-04 최종 로컬 검토 (2026-09-21)
+
+### A. 완료된 로컬 출시 검증
+- 기준 PR40 8575f63의 실제 CI35567087260/Node22/서버31·legacy6 PASS 확인 후 웹 URL decoder 노출 검토만 수행했다. 원본 사용자 checkout 소스는 수정하지 않았다.
+- 실제 minified 정적 번들55개 링크 회귀 PASS. 홈/초대/팀/날짜, 깨진 percent·UTF-8·이중 인코딩·중복 query·경로 키 충돌·긴 입력/오류 복구를 검사했다. 각 URL4096자 미만, loopback 서버/에뮬레이터만 사용하고 외부 요청은 차단했다.
+- decoder 함수는 번들 내 존재하지만55회 관측 중 호출0이었다. Expo의 URL 파싱이 실행되는 것을 별도 계측했고 URL.searchParams 함수에 대한 고유 식별자도 검증했다. 정적 존재만으로 노출을 단정하지 않았으며 취약점 경고는 삭제하지 않았다.
+- 실제로 재현한 중복 code 배열 입력/중복 date 오류 화면을 수정했다. 첫 쿼리값을 선택하고 팀 ID·실제 달력 날짜 검증을 구독 전 적용했다. 잘못된 링크는 명시적인 복구 화면, 정상 과거 날짜는 그대로 유지한다.
+- 타입/웹 export PASS. 기존 정적 번들 두 브라우저 가입/초대/등록/실패 재시도/재방문/닉네임/개인숨김/신고/날짜 플리 회귀 PASS. 오류 화면390/1280px 시각 확인 및 가로 넘침 없음. Playwright1.62.1 개발 의존성과55개 URL 정적 번들 회귀를 CI에 추가했다. npm 설치 후 audit28건으로 경고 수 변화 없음. 최신 변경 HEAD의 원격 CI는 push 후 별도 확인한다.
+- 구현/검증 근거와 제한은 docs/url-boundary-review.md. 이 범위에서 **추가 자체 구현이 필요한 로컬 출시 차단 항목은 발견되지 않았다.** 코드 리뷰 승인은 별도다.
+
+### B. 실제 사용자·계정 조작이 필요한 외부 조건
+- 실 Firebase/YouTube/App Check 설정·종단검증, Vercel 정식 프로젝트 설정/실패 로그 접근, 승인된 기존 데이터 점검·복구 판단, Safari/카카오 실기기 확인이 남았다.
+- 이번 단위에서 운영 데이터 조회/마이그레이션, Firebase/Vercel 인증 재시도, 요금제·키 변경, main merge, 수동 배포 또는 공개 홍보 없음. **운영 미배포, 외부 조건 대기 준비 상태**다. 외부 조건 변화나 새로운 실제 결함 없이 로컬 성공 검사를 반복하거나 새 작업을 자동 생성할 필요가 없다.
+
+### C. 출시 후 유지보수
+- dependency-audit의 잔여 uuid/빌드 도구 경로 판단을 유지한다. 호환 SDK/Router 업데이트, Actions 실행기/setup-java 및 캐시 경고는 후속 유지보수로 넘겼다. 현재 성공 검사 정확성을 바꾸는 증거는 없다.
+- 무위험/취약점0/실기기 검증 완료를 의미하지 않는다. 파서/라우터/사용자 파일 처리 등 노출 조건이 바뀌면 해당 경계 검사를 다시 수행한다.
+
 ## MUZIK-BETA-03 검증 보고 (2026-09-21)
 - 실사용 모바일 웹 기준으로 의존성 감사와 기존 Spark 데이터 호환성 검증을 진행했다. 작업 위치는 scratch/beta-integration, codex/mobile-web-beta, dev 대상 draft PR40이다. 원본 사용자 checkout 소스는 변경하지 않았다.
 - npm audit 전체: 앱/도구 **45(high15/moderate30)→28(high6/moderate22)**, Functions **13(high1/moderate12)→9(high0/moderate9)**. omit=dev는 각각22/9. audit 숫자는 상위 의존성 전파도 포함하며 실제 취약 경로 개수가 아니다. qs/Express/XML parser/PostCSS 및 도구의 호환 패치를 적용했다. force/Expo·RN·Admin major 업데이트는 하지 않았다.
