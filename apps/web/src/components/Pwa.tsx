@@ -243,6 +243,7 @@ export function AppUpdate() {
   useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
     let alive = true;
+    let hadController = Boolean(navigator.serviceWorker.controller);
     let reg: ServiceWorkerRegistration | undefined;
     const inspect = () => {
       if (alive && reg?.waiting) {
@@ -256,6 +257,12 @@ export function AppUpdate() {
     };
     const controlled = () => {
       if (!alive) return;
+      if (!hadController && !consent.current) {
+        hadController = true;
+        return;
+      }
+      hadController = true;
+      setWaiting(null);
       if (
         consent.current &&
         !currentSafety.current.busy &&
@@ -306,7 +313,7 @@ export function AppUpdate() {
             {safety.busy
               ? "저장 결과를 확인하는 중이에요. 현재 요청이 끝나면 업데이트할 수 있어요."
               : safety.unsafe
-                ? "초안을 기기에 보관하지 못해 업데이트를 잠시 막았어요."
+                ? "아직 보관되지 않은 입력이 있어요. 현재 입력을 완료하거나 닫은 뒤 업데이트해 주세요."
                 : "초안과 확인되지 않은 저장 요청은 이 기기에 보관돼요."}
           </p>
           <div className={s.actions}>

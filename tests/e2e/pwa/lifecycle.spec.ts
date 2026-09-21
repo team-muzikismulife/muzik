@@ -34,6 +34,7 @@ test.describe("PWA 수명과 운영", () => {
       ...options,
     });
     const key = `sb-${new URL(api.settings.API_URL).hostname.split(".")[0]}-auth-token`;
+    context.setDefaultTimeout(15000);
     await context.addInitScript(
       ({ key, session }: any) => {
         if (!localStorage.getItem("test-login-applied")) {
@@ -65,6 +66,16 @@ test.describe("PWA 수명과 운영", () => {
     const t = await setup(browser);
     try {
       await t.page.goto(`${origin}/`);
+      await t.page
+        .getByRole("button", { name: "설치 안내", exact: true })
+        .click();
+      await expect(
+        t.page.getByText(/브라우저 메뉴에서 ‘앱 설치’/),
+      ).toBeVisible();
+      await t.page.getByRole("button", { name: "설치 안내 닫기" }).click();
+      await expect(
+        t.page.getByRole("button", { name: "설치 안내", exact: true }),
+      ).toBeFocused();
       await t.page.evaluate(() => {
         const e = new Event("beforeinstallprompt", { cancelable: true }) as any;
         (window as any).installCalls = 0;
@@ -203,6 +214,23 @@ test.describe("PWA 수명과 운영", () => {
       await expect(
         installed.page.getByRole("button", { name: "설치 안내", exact: true }),
       ).toHaveCount(0);
+      const metricsDb = new (requireWeb("pg").Client)({
+        connectionString: installed.settings.DB_URL,
+      });
+      await metricsDb.connect();
+      await expect
+        .poll(async () =>
+          Number(
+            (
+              await metricsDb.query(
+                "select count(*) from private.daily_events where actor=$1 and kind='standalone'",
+                [installed.actor.id],
+              )
+            ).rows[0].count,
+          ),
+        )
+        .toBe(1);
+      await metricsDb.end();
       await installed.context.close();
     } finally {
       await t.context.close();
@@ -344,6 +372,22 @@ test.describe("PWA 수명과 운영", () => {
       await expect(t.page.getByLabel("추천하는 이유")).toHaveValue(
         "업데이트 뒤에도 남는 요청",
       );
+      await t.context.setOffline(true);
+      await t.page.reload();
+      await expect(t.page.getByLabel("추천하는 이유")).toHaveValue(
+        "업데이트 뒤에도 남는 요청",
+      );
+      await expect(
+        t.page.getByRole("button", { name: "저장 결과 확인", exact: true }),
+      ).toBeDisabled();
+      const savedRequest = await t.page.evaluate(
+        () =>
+          Object.entries(localStorage)
+            .filter(([k]) => k.includes(":draft:"))
+            .map(([, v]) => JSON.parse(v))[0]?.intent?.id,
+      );
+      expect(savedRequest).toBe(requestId);
+      await t.context.setOffline(false);
       await t.page.unroute("**/functions/v1/muzik");
       let replay = "";
       await t.page.route("**/functions/v1/muzik", async (route: any) => {
@@ -366,6 +410,8 @@ test.describe("PWA 수명과 운영", () => {
           )
         ).flat();
       });
+      expect(oldAssets.length).toBeGreaterThan(0);
+      expect(currentAssets.length).toBeGreaterThan(0);
       expect(oldAssets.every((u: string) => !currentAssets.includes(u))).toBe(
         true,
       );
@@ -402,11 +448,31 @@ test.describe("PWA 수명과 운영", () => {
       connectionString: t.settings.DB_URL,
     });
     await db.connect();
+    const message = `실제 사용자 흐름 의견 ${"longtext".repeat(100)}`;
     try {
       await t.page.goto(`${origin}/room/${t.room.roomId}/feedback`);
-      await t.page
-        .getByLabel("의견", { exact: true })
-        .fill("실제 사용자 흐름 의견");
+      await t.page.getByLabel("의견", { exact: true }).fill(message);
+      await t.page.setViewportSize({ width: 360, height: 420 });
+      const submit = t.page.getByRole("button", {
+        name: "의견 보내기",
+        exact: true,
+      });
+      await submit.scrollIntoViewIfNeeded();
+      expect(
+        await submit.evaluate((el: HTMLElement) => {
+          const r = el.getBoundingClientRect();
+          return el.contains(
+            document.elementFromPoint(
+              r.left + r.width / 2,
+              r.top + r.height / 2,
+            ),
+          );
+        }),
+      ).toBe(true);
+      await t.page.screenshot({
+        path: testInfo.outputPath("feedback-keyboard-360.png"),
+        fullPage: true,
+      });
       await t.page.route("**/functions/v1/muzik", async (route: any) => {
         if (route.request().postDataJSON().action === "sendFeedback") {
           await route.fetch();
@@ -420,7 +486,7 @@ test.describe("PWA 수명과 운영", () => {
       await t.page.unroute("**/functions/v1/muzik");
       await t.page.reload();
       await expect(t.page.getByLabel("의견", { exact: true })).toHaveValue(
-        "실제 사용자 흐름 의견",
+        message,
       );
       await t.page.getByRole("button", { name: "전송 결과 확인" }).click();
       await expect(
@@ -436,6 +502,31 @@ test.describe("PWA 수명과 운영", () => {
           ).rows[0].count,
         ),
       ).toBe(1);
+      const reporter = await t.user();
+      expect(
+        (
+          await invoke(t.settings, reporter.session, "joinRoom", {
+            code: t.room.code,
+            nickname: "신고자",
+          })
+        ).status,
+      ).toBe(200);
+      const track = await invoke(t.settings, t.actor.session, "registerTrack", {
+        roomId: t.room.roomId,
+        dateKey: todayKey(),
+        videoId: "dQw4w9WgXcQ",
+        comment: "운영 UI 확인 원문",
+      });
+      expect(track.status).toBe(200);
+      expect(
+        (
+          await invoke(t.settings, reporter.session, "reportTrack", {
+            roomId: t.room.roomId,
+            trackId: track.body.trackId,
+            reason: "운영 화면에서 검토할 신고",
+          })
+        ).status,
+      ).toBe(200);
       await t.page.goto(`${origin}/operations`);
       await expect(
         t.page.getByRole("heading", { name: "운영 권한이 없어요" }),
@@ -448,6 +539,26 @@ test.describe("PWA 수명과 운영", () => {
       await expect(
         t.page.getByRole("heading", { name: "운영 검토", exact: true }),
       ).toBeVisible();
+      const reported = t.page
+        .getByRole("article")
+        .filter({ hasText: "운영 화면에서 검토할 신고" });
+      await reported.getByLabel("처리 메모").fill("확인 후 공개에서 제외");
+      await t.page.setViewportSize({ width: 390, height: 844 });
+      await t.page.screenshot({
+        path: testInfo.outputPath("operations-report-390.png"),
+        fullPage: true,
+      });
+      t.page.once("dialog", (d: any) => d.accept());
+      await reported.getByRole("button", { name: "곡 숨기기" }).click();
+      await expect(reported).toHaveCount(0);
+      const hidden = (
+        await t.actor.client
+          .from("tracks")
+          .select("hidden,comment")
+          .eq("id", track.body.trackId)
+          .single()
+      ).data;
+      expect(hidden).toEqual({ hidden: true, comment: "" });
       const article = t.page
         .getByRole("article")
         .filter({ hasText: "실제 사용자 흐름 의견" });
@@ -462,6 +573,24 @@ test.describe("PWA 수명과 운영", () => {
       ).toBe(true);
       await t.page.screenshot({
         path: testInfo.outputPath("operations-360.png"),
+        fullPage: true,
+      });
+      await t.page.evaluate(() => {
+        const nodes = [
+          ...document.querySelectorAll<HTMLElement>("main *,header *"),
+        ];
+        const sizes = nodes.map((el) => getComputedStyle(el).fontSize);
+        nodes.forEach(
+          (el, i) => (el.style.fontSize = `${parseFloat(sizes[i]) * 2}px`),
+        );
+      });
+      expect(
+        await t.page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await t.page.screenshot({
+        path: testInfo.outputPath("operations-360-text200.png"),
         fullPage: true,
       });
     } finally {

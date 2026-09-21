@@ -234,14 +234,30 @@ export default function Operations() {
         {ref ? (
           <a
             className={s.textAction}
-            href={`https://supabase.com/dashboard/project/${ref}/usage`}
+            href={`https://supabase.com/dashboard/project/${ref}`}
             target="_blank"
             rel="noopener noreferrer"
           >
-            현재 프로젝트 사용량
+            현재 프로젝트 콘솔
           </a>
         ) : (
           <p>실제 프로젝트 사용량 링크는 정식 프로젝트 연결 후 제공됩니다.</p>
+        )}
+        {ref && (
+          <>
+            <a
+              className={s.textAction}
+              href="https://supabase.com/dashboard/org/_/usage"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              공식 사용량 확인
+            </a>
+            <p className={s.notice}>
+              조직 사용량에서 현재 프로젝트 {ref}를 선택해 확인하세요. 앱은 실제
+              사용량이나 잔여 한도를 추정하지 않습니다.
+            </p>
+          </>
         )}
         <p>
           무료 프로젝트는 활동이 적으면 일시정지될 수 있어요. Dashboard에서

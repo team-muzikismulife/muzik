@@ -128,9 +128,11 @@ export default function Feedback({
             }
           }}
         >
-          <label>
-            의견
+          <div>
+            <label htmlFor="feedback-message">의견</label>
             <textarea
+              id="feedback-message"
+              aria-describedby="feedback-count"
               rows={6}
               maxLength={1000}
               value={draft.message}
@@ -140,8 +142,8 @@ export default function Feedback({
                 setError(null);
               }}
             />
-            <small>{draft.message.length}/1000</small>
-          </label>
+            <small id="feedback-count">{draft.message.length}/1000</small>
+          </div>
           {!online && (
             <p role="status">
               오프라인이에요. 내용은 이 기기에 보관하며 자동 전송하지 않아요.

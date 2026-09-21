@@ -5,6 +5,11 @@ export function recordMetric(
   kind: "visit" | "install_open" | "install_accepted" | "standalone",
 ) {
   if (!uid || !navigator.onLine) return;
+  if (
+    location.origin !== import.meta.env.VITE_PUBLIC_ORIGIN ||
+    location.protocol !== "https:"
+  )
+    return;
   const key = `muzik:${uid}:metric:${todayKey()}:${kind}`;
   try {
     if (sessionStorage.getItem(key)) return;

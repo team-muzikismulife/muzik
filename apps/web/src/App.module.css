@@ -59,6 +59,10 @@
   padding: var(--s6) 0;
   border-top: 1px solid var(--border);
 }
+.section p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
 .primary,
 .secondary {
   display: flex;

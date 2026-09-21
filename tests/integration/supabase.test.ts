@@ -508,6 +508,50 @@ try {
     decision: "hide",
     note: "운영 검토 후 숨김",
   };
+  for (let i = 0; i < 10; i++)
+    await ok(b, "refreshMeta", {
+      roomId: moderation.roomId,
+      trackId: first.trackId,
+    });
+  await denied(
+    b,
+    "refreshMeta",
+    { roomId: moderation.roomId, trackId: first.trackId },
+    "RATE_LIMITED",
+  );
+  assert(
+    (await a.client.rpc("muzik_cache_refresh_get", { p_video: p.videoId }))
+      .error,
+  );
+  await db.query(
+    "insert into private.video_cache values($1,$2,now()+interval '1 day') on conflict(video_id) do update set metadata=excluded.metadata,expires_at=excluded.expires_at",
+    [p.videoId, { videoId: p.videoId }],
+  );
+  assert.equal(
+    (
+      await db.query("select public.muzik_cache_refresh_get($1) as value", [
+        p.videoId,
+      ])
+    ).rows[0].value.videoId,
+    p.videoId,
+  );
+  await db.query(
+    "update private.video_cache set expires_at=now()+interval '23 hours 54 minutes' where video_id=$1",
+    [p.videoId],
+  );
+  assert.equal(
+    (
+      await db.query("select public.muzik_cache_refresh_get($1) as value", [
+        p.videoId,
+      ])
+    ).rows[0].value,
+    null,
+  );
+  assert(
+    (await db.query("select public.muzik_cache_get($1) as value", [p.videoId]))
+      .rows[0].value,
+  );
+  pass("메타 갱신 시간당 제한·5분 캐시와 일반 캐시 구분·직접 조회 차단");
   const decisionId = crypto.randomUUID();
   await ok(c, "resolveReport", decision, decisionId);
   await ok(c, "resolveReport", decision, decisionId);
