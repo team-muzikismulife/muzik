@@ -104,3 +104,13 @@ functions/.secret.local
 
 # Vercel (로컬 프로젝트 링크 — 커밋 금지)
 .vercel
+supabase/.temp/
+supabase/.branches/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/.wrangler/
+.env.test.local
+tests/artifacts/
+apps/web/public/icons/
+.env.*.local
+legacy/firebase/functions/lib/
