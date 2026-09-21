@@ -79,7 +79,7 @@ export function App() {
       <Header />
       <main id="content" tabIndex={-1}>
         <Boundary key={location.pathname}>
-          <Suspense fallback={<State />}>
+          <Suspense fallback={<State page />}>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />

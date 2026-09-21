@@ -103,7 +103,9 @@ export function TrackCard({
             )}
           </Menu>
         </div>
-        <div className={s.trackSummary}>
+        <div
+          className={`${s.trackSummary} ${track.title.length > 80 ? s.longTitle : ""}`}
+        >
           <img
             src={`https://i.ytimg.com/vi/${track.video_id}/hqdefault.jpg`}
             alt=""

@@ -84,7 +84,7 @@ function RoomContent({
   useEffect(() => {
     if (result.data) touchTeam(uid, id);
   }, [uid, id, Boolean(result.data)]);
-  if (result.isPending) return <State title="팀의 음악을 불러오는 중" />;
+  if (result.isPending) return <State page title="팀의 음악을 불러오는 중" />;
   if (result.isError)
     return (
       <section className={s.state}>
@@ -100,9 +100,17 @@ function RoomContent({
     );
   const data = result.data;
   const mine = data.tracks.find((t) => t.user_id === uid);
+  if (view.editor && mode === "edit" && !record && !mine)
+    return (
+      <State page title="수정할 곡을 찾지 못했어요">
+        <Link className={s.secondary} to={`/room/${id}?date=${date}`}>
+          팀으로 돌아가기
+        </Link>
+      </State>
+    );
   if (view.editor)
     return (
-      <Suspense fallback={<State />}>
+      <Suspense fallback={<State page />}>
         <TrackEditor
           key={`${uid}:${id}:${date}:${mode}:${record}`}
           roomId={id}
@@ -115,7 +123,7 @@ function RoomContent({
     );
   if (view.history)
     return (
-      <Suspense fallback={<State />}>
+      <Suspense fallback={<State page />}>
         <History roomId={id} name={data.room.name} />
       </Suspense>
     );
@@ -301,7 +309,7 @@ function Feed({
           {draft.intent ? "저장 결과 확인하기" : "작성하던 초안 이어쓰기"}
         </Link>
       )}
-      {undo && (
+      {undo && hidden.ids.includes(undo) && (
         <div className={s.undo} role="status">
           <p>이 기기에서 곡을 숨겼어요.</p>
           <button

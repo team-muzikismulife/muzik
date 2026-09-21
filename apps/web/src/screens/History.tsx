@@ -32,7 +32,7 @@ export default function History({
       <h1>지난 기록</h1>
       {query.isPending ? (
         <State />
-      ) : query.isError ? (
+      ) : query.isError && !query.data ? (
         <State title="기록을 불러오지 못했어요">
           <ErrorText error={query.error} />
           <button className={s.secondary} onClick={() => void query.refetch()}>
@@ -41,7 +41,7 @@ export default function History({
         </State>
       ) : (
         <>
-          {query.data.pages.flat().length ? (
+          {query.data?.pages.flat().length ? (
             query.data.pages.flat().map((day) => (
               <Link
                 className={s.historyRow}

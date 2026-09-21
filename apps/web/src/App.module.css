@@ -47,6 +47,7 @@
 }
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--s6);
 }
 .section {
@@ -94,10 +95,12 @@
 }
 .artwork {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s3);
 }
 .artwork img {
+  width: 100%;
+  min-width: 0;
   aspect-ratio: 16/9;
   object-fit: cover;
   border-radius: var(--radius);
@@ -319,6 +322,9 @@ a.row {
 .trackSummary small {
   display: block;
   overflow-wrap: anywhere;
+}
+.trackSummary.longTitle {
+  grid-template-columns: minmax(0, 1fr);
 }
 .reportForm {
   border-top: 1px solid var(--border);

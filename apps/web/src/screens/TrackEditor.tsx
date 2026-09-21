@@ -188,6 +188,16 @@ export default function TrackEditor({
         !["UNAVAILABLE", "UNAUTHENTICATED", "RATE_LIMITED"].includes(err.code)
       )
         persist({ ...draftRef.current, intent: undefined });
+      if (
+        err instanceof CommandError &&
+        [
+          "ALREADY_EXISTS",
+          "TRACK_CHANGED",
+          "NOT_FOUND",
+          "HIDDEN_TRACK",
+        ].includes(err.code)
+      )
+        await cache.invalidateQueries({ queryKey: ["room", uid, roomId] });
     } finally {
       inFlight.current = false;
       if (active.current) setPending(false);

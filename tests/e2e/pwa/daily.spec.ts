@@ -232,6 +232,85 @@ test.describe("일상 사용 경계", () => {
       await t.context.close();
     }
   });
+  test("지난 신규 초안은 확인 후 이동·공유 취소·붙여넣기 실패 복구", async ({
+    browser,
+  }: any) => {
+    const t = await setup(browser);
+    try {
+      const yesterday = new Date(`${t.date}T00:00:00Z`);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const oldDate = yesterday.toISOString().slice(0, 10);
+      await t.page.goto(`/room/${t.room.roomId}`);
+      await t.page.evaluate(() => {
+        Object.defineProperty(navigator, "share", {
+          configurable: true,
+          value: async () => {
+            throw new DOMException("Cancelled", "AbortError");
+          },
+        });
+      });
+      await t.page
+        .getByRole("button", { name: "초대하기", exact: true })
+        .click();
+      await expect(t.page.getByRole("alert")).toHaveCount(0);
+      await t.page
+        .getByRole("link", { name: "오늘의 곡 추가", exact: true })
+        .click();
+      await t.page.getByLabel("추천하는 이유").fill("오늘 보관한 초안");
+      await t.page.goto(`/room/${t.room.roomId}/track/new?date=${oldDate}`);
+      await t.page.evaluate(() => {
+        Object.defineProperty(navigator.clipboard, "readText", {
+          configurable: true,
+          value: async () => {
+            throw new DOMException("Denied", "NotAllowedError");
+          },
+        });
+      });
+      await t.page.getByRole("button", { name: "링크 붙여넣기" }).click();
+      const link = t.page.getByLabel("YouTube 링크", { exact: true });
+      await expect(link).toBeFocused();
+      await expect(t.page.getByText(/링크를 직접 입력해 주세요/)).toBeVisible();
+      await link.fill("https://youtu.be/dQw4w9WgXcQ");
+      await t.page.getByLabel("추천하는 이유").fill("지난날 보관한 초안");
+      await expect(
+        t.page.getByRole("button", { name: "곡 등록하기", exact: true }),
+      ).toBeDisabled();
+      t.page.once("dialog", (dialog: any) => dialog.dismiss());
+      await t.page
+        .getByRole("button", { name: "오늘의 초안으로 가져오기" })
+        .click();
+      await expect(t.page).toHaveURL(new RegExp(`date=${oldDate}`));
+      const prompts: string[] = [];
+      const accept = async (dialog: any) => {
+        prompts.push(dialog.message());
+        await dialog.accept();
+      };
+      t.page.on("dialog", accept);
+      await t.page
+        .getByRole("button", { name: "오늘의 초안으로 가져오기" })
+        .click();
+      await expect(t.page).toHaveURL(new RegExp(`date=${t.date}`));
+      t.page.off("dialog", accept);
+      expect(prompts).toHaveLength(2);
+      await expect(t.page.getByLabel("추천하는 이유")).toHaveValue(
+        "지난날 보관한 초안",
+      );
+      await expect(
+        t.page.getByRole("button", { name: "곡 등록하기", exact: true }),
+      ).toBeEnabled();
+      expect(
+        (
+          await t.a.client
+            .from("tracks")
+            .select("id")
+            .eq("room_id", t.room.roomId)
+        ).data,
+      ).toEqual([]);
+      expect(t.errors).toEqual([]);
+    } finally {
+      await t.context.close();
+    }
+  });
   test("추천 ID 재생·마지막 종료·연속 오류·실시간 삭제·숨김 복원", async ({
     browser,
   }: any, testInfo: any) => {
@@ -333,17 +412,15 @@ test.describe("일상 사용 경계", () => {
       expect((await t.admin.from("tracks").insert(tracks)).error).toBeNull();
       expect(
         (
-          await t.admin
-            .from("days")
-            .insert(
-              dates.map((date) => ({
-                room_id: t.room.roomId,
-                date_key: date,
-                theme_text: "지난날의 추천",
-                track_count: 1,
-                cover_video_id: "dQw4w9WgXcQ",
-              })),
-            )
+          await t.admin.from("days").insert(
+            dates.map((date) => ({
+              room_id: t.room.roomId,
+              date_key: date,
+              theme_text: "지난날의 추천",
+              track_count: 1,
+              cover_video_id: "dQw4w9WgXcQ",
+            })),
+          )
         ).error,
       ).toBeNull();
       const other = await t.call(t.a, "createRoom", {
@@ -385,11 +462,9 @@ test.describe("일상 사용 경계", () => {
       await expect(
         t.page.getByRole("heading", { name: dates[17], exact: true }),
       ).toBeVisible();
-      const last = t.page
-        .getByRole("link")
-        .filter({
-          has: t.page.getByRole("heading", { name: dates[17], exact: true }),
-        });
+      const last = t.page.getByRole("link").filter({
+        has: t.page.getByRole("heading", { name: dates[17], exact: true }),
+      });
       await last.scrollIntoViewIfNeeded();
       const scroll = await t.page.evaluate(() => scrollY);
       await last.click();
@@ -483,6 +558,9 @@ test.describe("일상 사용 경계", () => {
         .click();
       await t.page.getByRole("button", { name: /숨긴 곡 복원/ }).click();
       await expect(card).toBeVisible();
+      await expect(t.page.getByText("이 기기에서 곡을 숨겼어요.")).toHaveCount(
+        0,
+      );
       for (const width of [360, 390]) {
         await t.page.setViewportSize({ width, height: 844 });
         expect(
@@ -529,6 +607,7 @@ test.describe("일상 사용 경계", () => {
         name: "수정 완료",
         exact: true,
       });
+      await expect(save).toBeEnabled();
       await save.scrollIntoViewIfNeeded();
       await expect(save).toBeVisible();
       expect(

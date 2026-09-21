@@ -6,17 +6,19 @@
 
 React/Vite 웹, Supabase 서버 계약과 권한, Cloudflare 정적 배포 설정을 구현 중입니다. 실 Supabase 프로젝트와 Google/YouTube 연결 및 운영 배포는 아직 하지 않았습니다. 설정 없이도 공개 화면은 열리며 로그인·저장 성공을 가장하지 않습니다.
 
+일상 사용 흐름에는 팀 참여, 자동 영상 확인, 사용자·팀·날짜별 초안과 저장 재시도, 추천 기록별 모아듣기, 지난 기록, 개인 숨김·신고 접수·닉네임 변경이 포함됩니다. 설치·업데이트 마무리, 운영자 신고 처리와 피드백·지표는 후속 단계이며 출시 완료를 뜻하지 않습니다.
+
 ## 구조
 
-| 경로 | 역할 |
-| --- | --- |
-| `apps/web` | 유일한 운영 웹 앱. React, Vite, TanStack Query, CSS Modules |
-| `packages/domain` | 웹·Edge 공통 입력 검증, 날짜와 테마 계약 |
-| `supabase` | PostgreSQL 스키마, RLS, Edge Functions |
-| `tests` | unit / integration / e2e / fixtures. 운영에서 import 금지 |
-| `examples/mock` | 이전 Expo 목업. 운영 데이터 아님 |
-| `legacy/expo`, `legacy/firebase`, `legacy/native` | 이전 구현 보존. 신규 운영 빌드에 포함 안 됨 |
-| `docs/archive` | 이전 설계·Firebase 베타 이력. 현재 운영 지침 아님 |
+| 경로                                              | 역할                                                        |
+| ------------------------------------------------- | ----------------------------------------------------------- |
+| `apps/web`                                        | 유일한 운영 웹 앱. React, Vite, TanStack Query, CSS Modules |
+| `packages/domain`                                 | 웹·Edge 공통 입력 검증, 날짜와 테마 계약                    |
+| `supabase`                                        | PostgreSQL 스키마, RLS, Edge Functions                      |
+| `tests`                                           | unit / integration / e2e / fixtures. 운영에서 import 금지   |
+| `examples/mock`                                   | 이전 Expo 목업. 운영 데이터 아님                            |
+| `legacy/expo`, `legacy/firebase`, `legacy/native` | 이전 구현 보존. 신규 운영 빌드에 포함 안 됨                 |
+| `docs/archive`                                    | 이전 설계·Firebase 베타 이력. 현재 운영 지침 아님           |
 
 ## 개발
 

@@ -103,14 +103,19 @@ export function Home() {
         </div>
       ) : (
         <State title="첫 음악 모임을 시작해 볼까요?">
-          <Link to="/room/create" className={s.primary}>
+          <Link to="/room/join" className={s.primary}>
+            팀에 참여하기
+          </Link>
+          <Link to="/room/create" className={s.secondary}>
             팀 만들기
           </Link>
         </State>
       )}
-      <Link className={s.secondary} to="/room/join">
-        초대 코드로 참여
-      </Link>
+      {Boolean(teams.data?.length) && (
+        <Link className={s.secondary} to="/room/join">
+          초대 코드로 참여
+        </Link>
+      )}
     </section>
   );
 }

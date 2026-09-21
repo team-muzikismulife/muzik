@@ -30,6 +30,22 @@ test("공개 화면·미연동·모바일 폭·manifest", async ({
       fullPage: true,
     });
   }
+  await page.route("https://i.ytimg.com/**", (route: any) => route.abort());
+  await page.setViewportSize({ width: 360, height: 844 });
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "MUZIK", exact: true }),
+  ).toBeVisible();
+  await page.locator("img").evaluateAll(async (images: HTMLImageElement[]) => {
+    await Promise.all(
+      images.map((image) => image.decode().catch(() => undefined)),
+    );
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
   await page.getByRole("link", { name: "팀 만들기", exact: true }).click();
   if (process.env.PWA_TEST_BACKEND === "1")
     await expect(
