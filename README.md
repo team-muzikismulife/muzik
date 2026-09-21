@@ -45,4 +45,6 @@ Legacy 검사는 `legacy/expo`, `legacy/firebase/functions`에서 각각 `npm ci
 - feature 작업은 `dev`로 PR. production 수정은 main 반영 후 dev에 동기화합니다.
 - Cloudflare 배포 루트는 `apps/web`. 기존 Vercel/Firebase 설정은 `legacy`에만 보존하며 이전 연결의 자동 배포 영향은 병합 전에 별도 확인합니다.
 
-[구현 현황](docs/pwa-implementation.md) · [마지막 외부 연결 절차](docs/pwa-connection.md) · [운영과 복구](docs/pwa-operations.md)
+[구현 현황](docs/pwa-implementation.md) · [마지막 외부 연결 절차](docs/pwa-connection.md) · [운영과 복구](docs/pwa-operations.md) · [릴리즈 실행 순서](docs/pwa-release.md) · [검증 대조표](docs/pwa-acceptance.md)
+
+정식 연결 빌드는 `npm --prefix apps/web run build:release`로 별도 검증합니다. 고정 HTTPS origin·공개 Supabase 설정·커밋 버전이 없으면 중단합니다. `npm --prefix apps/web run test:assets`는 Cloudflare 로컬 환경의 SPA/헤더/아이콘 검사이며 외부 업로드를 하지 않습니다.

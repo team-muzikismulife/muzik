@@ -26,7 +26,25 @@ delete from private.operators where user_id = '<verified-auth-user-uuid>';
 
 ## 최소 지표와 사용량
 
-`private.daily_events`는 기존 사용자 UUID/서버 KST 날짜/종류만 보관합니다. 일 방문, 설치 안내 진입, 브라우저 설치 요청 수락, standalone 표시 모드 실행은 별개이며 종류마다 하루 한 건입니다. 익명 식별자·외부 분석·기기 추적 ID를 만들지 않습니다. 자동 계측은 고정 HTTPS origin에서 로그인한 경우에만 시도하고 실패를 핵심 행동에 전파하거나 무한 재시도하지 않습니다. 따라서 수집된 최소 기록이지 모든 방문을 보장하는 지표는 아닙니다. 수락 또는 standalone 실행을 설치 성공/설치 기기 수로 표시하지 않습니다.
+`private.daily_events`는 기존 사용자 UUID/서버 KST 날짜/종류만 보관합니다. 아래 지표는 횟수·기기 수·사람 수가 아니라 **해당 행동이 관측된 계정 수**입니다. 종류마다 계정당 KST 하루 한 건이며 같은 날 여러 기기/반복 클릭도 한 계정입니다.
+
+| 종류               | 실제 기록 조건                                                    |
+| ------------------ | ----------------------------------------------------------------- |
+| `visit`            | 고정 주소에서 로그인 상태로 앱 실행                               |
+| `install_open`     | 사용자가 설치 안내 진입 버튼을 직접 클릭                          |
+| `install_request`  | 지원 브라우저에서 홈 화면 추가 버튼을 눌러 native prompt를 요청   |
+| `install_accepted` | 해당 prompt의 수락 응답을 받음. 설치 완료 아님                    |
+| `standalone`       | 실제 표시 모드/브라우저 standalone 플래그 관측. 설치 기기 수 아님 |
+
+첫 등록 후 자동 안내 노출은 기록하지 않습니다. 서버 집계는 현재 `private.operators`에 속한 계정의 기록을 과거 날짜까지 제외합니다. 원시 기록은 남으므로 권한 회수 시 그 계정의 기록이 다시 포함됩니다. 테스트 계정 자동 판별은 없습니다. CI 테스트는 격리 DB만 사용하며, 향후 운영 환경 점검 계정은 신뢰된 관리자가 운영자로 지정해야 제외됩니다. 운영 권한 부여 자체는 별도 신원 확인이 필요합니다.
+
+익명 식별자·외부 분석·기기 추적 ID를 만들지 않습니다. 자동 계측은 고정 HTTPS origin에서 로그인한 경우에만 시도하고 실패를 핵심 행동에 전파하거나 무한 재시도하지 않습니다. 따라서 수집된 최소 기록이지 모든 방문을 보장하는 지표는 아닙니다. migration004는 종류를 추가하되 이전 원시 기록을 소급 재분류하지 않습니다. 현재까지 실 프로젝트에는 적용/수집하지 않았습니다.
+
+## 설치 안내 상태
+
+자동 안내는 저장 완료와 팀 화면 이동 후 본문 상단에 표시하며, 입력/전송 중에는 제안하지 않습니다. 닫기 버튼은 360/390px 실제 viewport와 hit-test로 검사합니다. 안내는 modal이나 overlay가 아니므로 팀 행동을 차단하지 않습니다.
+
+`appinstalled` 관측은 이 브라우저의 로컬 표시 힌트로 보관하여 새로고침 뒤 안내를 다시 열지 않습니다. 지원 환경에서는 같은 origin의 manifest를 `getInstalledRelatedApps()`로 확인합니다. 새로운 `beforeinstallprompt`를 받으면 다시 설치 가능한 상태로 보고 옛 힌트를 지웁니다. 힌트는 서버 지표·설치 성공·권한 근거가 아닙니다. 설치 삭제를 알려 주지 않는 브라우저에서는 현재 설치 여부를 완전히 판별할 수 없습니다. [브라우저 설치 확인 범위](https://developer.chrome.com/docs/capabilities/get-installed-related-apps), [manifest self-reference](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/related_applications).
 
 운영 화면은 현재 Supabase 프로젝트 콘솔과 [공식 조직 사용량](https://supabase.com/dashboard/org/_/usage)을 제공합니다. 조직 사용량에서 해당 프로젝트를 선택해 DB, Auth, Realtime, Edge, egress 등을 확인합니다. 앱에서 측정하지 않은 사용량·잔여 한도·동시 청취 수를 계산하지 않습니다. 공식 설명: [사용량 집계 범위](https://supabase.com/docs/guides/troubleshooting/understanding-the-usage-summary-on-the-dashboard-D7Gnle).
 

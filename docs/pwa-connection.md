@@ -2,6 +2,8 @@
 
 이 문서는 준비 절차입니다. 실제 계정/프로젝트 생성·연결, OAuth 검증, 배포 성공 기록이 아닙니다.
 
+최종 명령과 설정 대조/원복/병합 보류 조건은 [릴리즈 실행 순서](pwa-release.md), 구현별 검사 범위는 [검증 대조표](pwa-acceptance.md)를 참고합니다. 연결 시에는 미연동 공개용 `build`가 아니라 `build:release`를 사용합니다.
+
 1. 사용자가 지정한 Supabase 계정과 소유 조직의 무료 프로젝트 한도를 확인합니다. 기존 다른 서비스 계정·프로젝트를 재사용하지 않습니다. 새 결제나 리소스 삭제는 하지 않습니다.
 2. 새 MUZIK 프로젝트를 만들고 `supabase/migrations`를 적용합니다. 운영 데이터 자동 이전은 없습니다.
 3. Supabase Auth에 Google provider를 설정합니다. Google OAuth redirect는 해당 프로젝트의 Auth callback, Supabase 허용 redirect는 실제 웹 `/auth/callback`으로 제한합니다. 익명 가입은 사용하지 않습니다.

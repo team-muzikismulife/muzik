@@ -1,3 +1,16 @@
+# PWA-03 연결 전 릴리즈 준비
+
+2026-09-21. 실제 서비스 연결·배포·main 병합을 하지 않고, 검토 지적 보완과 통합/릴리즈 준비를 수행했다.
+
+- 자동 설치 안내는 지표를 기록하지 않는다. 수동 안내 진입/설치 요청 버튼 클릭/수락/standalone을 구분하고 KST 해당 행동 계정 수로 표시한다. 서버 집계는 현재 운영자의 과거 기록도 제외한다. 테스트는 격리 DB에서만 실행하며 운영의 테스트 계정을 자동 판별한다고 주장하지 않는다.
+- 첫 등록 성공 뒤 저장/화면 이동이 끝나면 본문 상단에 안내한다. 입력 중 자동 이동 없음. 360/390px에서 안내 제목과44px 닫기를 viewport/hit-test로 검증했다. appinstalled 로컬 힌트로 새로고침 뒤 안내를 유지해서 숨기고, 지원 브라우저 관련 앱 조회와 다시 설치 가능 이벤트를 구분한다. 이 힌트를 설치 성공 지표로 사용하지 않는다.
+- 정식 build:release에 공개 서버 URL/키·고정 HTTPS·커밋 버전 필수 가드를 추가했다. 로컬 Wrangler SPA 직접 경로·갱신 헤더·PNG 아이콘 검사2개를 추가했다. 기본 미연동 공개 빌드와 실제 운영 연결을 분리한다.
+- 설정/명령/원복/마지막 사용자 행동은 pwa-release.md, 승인 범위별 검사 대조는 pwa-acceptance.md, 지표/운영 정의는 pwa-operations.md에 정리했다.
+- `9564e3a` [PWA CI35613643678](https://github.com/team-muzikismulife/muzik/actions/runs/35613643678) success: unit23, DB/Edge25묶음, 연결환경 브라우저15(1.3분), 공개1, build/Deno/dry-run. 설치 viewport360/390 artifact 직접 확인. 이후 정적 호스팅 검사/문서의 최종 CI는 PR 최신 체크를 따른다.
+- 기존 Vercel production branch/root/build/output/ignored build 설정은 로그인 없이 읽지 못했다. 기존 실패 체크/설정/서비스를 변경하지 않았으며 production 영향 확인 전 병합은 보류한다. 새 계정 연결과 실 Google/YouTube/휴대폰/Cloudflare 검증도 별도 미실행이다.
+
+---
+
 # PWA-02B 설치와 운영 구현 보고
 
 2026-09-21. 기존 PR [#42](https://github.com/team-muzikismulife/muzik/pull/42), `codex/pwa-core` → `dev` draft를 이어 진행했다. main 병합·실제 외부 연결·배포 없음.
