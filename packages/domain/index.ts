@@ -16,6 +16,13 @@ export type Action =
   | "getInvitePreview"
   | "updateNickname"
   | "reportTrack"
+  | "getCapabilities"
+  | "getOperations"
+  | "resolveReport"
+  | "sendFeedback"
+  | "resolveFeedback"
+  | "recordEvent"
+  | "refreshMeta"
   | "previewTrack"
   | "registerTrack"
   | "updateTrack"
@@ -63,7 +70,7 @@ export function safeReturnPath(value: string | null): string {
     const url = new URL(value, "https://muzik.invalid");
     if (url.origin !== "https://muzik.invalid" || !value.startsWith("/"))
       return "/";
-    return /^\/(?:$|room\/(?:create|join)$|r\/[A-HJ-NP-Z2-9]{6}$|room\/[0-9a-f-]{36}(?:\/playlist\/\d{4}-\d{2}-\d{2}|\/track\/(?:new|edit)|\/members|\/history)?$)/i.test(
+    return /^\/(?:$|operations$|room\/(?:create|join)$|r\/[A-HJ-NP-Z2-9]{6}$|room\/[0-9a-f-]{36}(?:\/playlist\/\d{4}-\d{2}-\d{2}|\/track\/(?:new|edit)|\/members|\/history|\/feedback)?$)/i.test(
       url.pathname,
     )
       ? url.pathname + url.search
@@ -119,6 +126,26 @@ export function validatePayload(
       trackId: (v) => UUID.test(v),
       reason: (v) => v.length >= 1 && v.length <= 200,
     },
+    getCapabilities: {},
+    getOperations: {},
+    resolveReport: {
+      reportId: (v) => UUID.test(v),
+      decision: (v) => ["hide", "dismiss"].includes(v),
+      note: (v) => v.length >= 1 && v.length <= 200,
+    },
+    sendFeedback: {
+      roomId: (v) => UUID.test(v),
+      message: (v) => v.length >= 1 && v.length <= 1000,
+    },
+    resolveFeedback: {
+      feedbackId: (v) => UUID.test(v),
+      note: (v) => v.length >= 1 && v.length <= 200,
+    },
+    recordEvent: {
+      kind: (v) =>
+        ["visit", "install_open", "install_accepted", "standalone"].includes(v),
+    },
+    refreshMeta: { roomId: (v) => UUID.test(v), trackId: (v) => UUID.test(v) },
   };
   const schema = Object.hasOwn(rules, action) ? rules[action] : undefined;
   if (!schema || Object.keys(value).length !== Object.keys(schema).length)

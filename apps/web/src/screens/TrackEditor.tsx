@@ -21,6 +21,8 @@ import { useToday } from "../hooks";
 import { useSession } from "../session";
 import { ErrorText } from "../components/ui";
 import s from "../App.module.css";
+import { useUpdateGuard } from "../lifecycle";
+import { firstTrackSaved } from "../components/Pwa";
 
 export default function TrackEditor({
   roomId,
@@ -28,15 +30,19 @@ export default function TrackEditor({
   mode,
   track,
   expectedId,
+  uid: localUid,
+  accessConfirmed = true,
 }: {
   roomId: string;
   date: string;
   mode: "new" | "edit";
   track?: Track;
   expectedId?: string;
+  uid?: string;
+  accessConfirmed?: boolean;
 }) {
   const { session } = useSession();
-  const uid = session!.user.id;
+  const uid = session?.user.id ?? localUid!;
   const navigate = useNavigate();
   const cache = useQueryClient();
   const location = useLocation();
@@ -71,6 +77,11 @@ export default function TrackEditor({
   const [touched, setTouched] = useState(false);
   const [retry, setRetry] = useState(0);
   const [online, setOnline] = useState(navigator.onLine);
+  useUpdateGuard("track-editor", {
+    busy: pending,
+    unsafe: storageError,
+    editing: Boolean(draft.link || draft.comment || draft.intent),
+  });
   const generation = useRef(0);
   const inFlight = useRef(false);
   const videoId = extractVideoId(draft.link);
@@ -84,7 +95,9 @@ export default function TrackEditor({
     };
   }, []);
   const changedTrack =
-    editing && (!track || track.id !== draft.trackId || track.hidden);
+    accessConfirmed &&
+    editing &&
+    (!track || track.id !== draft.trackId || track.hidden);
   const locked = Boolean(draft.intent) || pending;
   const persist = (next: Draft) => {
     draftRef.current = next;
@@ -116,7 +129,7 @@ export default function TrackEditor({
     setVideo(null);
     setPreviewError(null);
     setPreviewing(false);
-    if (!videoId || !online || draft.intent) return;
+    if (!videoId || !online || !accessConfirmed || draft.intent) return;
     const timer = setTimeout(() => {
       setPreviewing(true);
       void command<Video>(
@@ -138,11 +151,11 @@ export default function TrackEditor({
       clearTimeout(timer);
       generation.current++;
     };
-  }, [videoId, roomId, online, retry, Boolean(draft.intent)]);
+  }, [videoId, roomId, online, retry, Boolean(draft.intent), accessConfirmed]);
   const save = async (event: FormEvent) => {
     event.preventDefault();
     setTouched(true);
-    if (inFlight.current || !online) return;
+    if (inFlight.current || !online || !accessConfirmed) return;
     const previous = draftRef.current;
     if (
       !previous.intent &&
@@ -176,6 +189,7 @@ export default function TrackEditor({
       const result = await command(intent.action, intent.payload, intent.id);
       if (!active.current) return;
       localStorage.removeItem(draftKey(previous));
+      if (intent.action === "registerTrack") firstTrackSaved(uid);
       await cache.invalidateQueries({ queryKey: ["room", uid, roomId] });
       await cache.invalidateQueries({ queryKey: ["teams", uid] });
       navigate(`/room/${roomId}?date=${result.dateKey}`, { replace: true });
@@ -253,6 +267,33 @@ export default function TrackEditor({
         팀으로
       </Link>
       <h1>{editing ? "내 곡 수정" : "오늘의 한 곡"}</h1>
+      {!accessConfirmed && (
+        <div className={s.notice}>
+          <p>
+            이 기기의 초안만 열었어요. 팀 권한과 저장 결과는 아직 확인하지
+            않았어요.
+          </p>
+          {!session ? (
+            <Link
+              className={s.textAction}
+              to={`/login?reauth=1&next=${encodeURIComponent(location.pathname + location.search)}`}
+            >
+              같은 계정으로 로그인하고 복구
+            </Link>
+          ) : online ? (
+            <button
+              className={s.secondary}
+              onClick={() =>
+                void cache.invalidateQueries({
+                  queryKey: ["room", uid, roomId],
+                })
+              }
+            >
+              연결 다시 확인
+            </button>
+          ) : null}
+        </div>
+      )}
       {oldDay && (
         <div className={s.notice} role="status">
           <p>
@@ -379,6 +420,7 @@ export default function TrackEditor({
           className={s.primary}
           disabled={
             pending ||
+            !accessConfirmed ||
             !online ||
             (!draft.intent &&
               (!video ||

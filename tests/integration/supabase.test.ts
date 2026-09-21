@@ -432,6 +432,182 @@ try {
     await invoke(settings, c.session, "getInvitePreview", { code: "ZZZZZZ" });
   await denied(c, "getInvitePreview", { code }, "RATE_LIMITED");
   pass("초대 조회 요청 제한");
+  await a.client.auth.updateUser({
+    data: { operator: true, role: "admin", is_admin: true },
+  });
+  assert.equal((await ok(a, "getCapabilities", {})).operator, false);
+  await denied(a, "getOperations", {}, "FORBIDDEN");
+  await denied(
+    a,
+    "resolveReport",
+    { reportId: crypto.randomUUID(), decision: "hide", note: "권한 위조" },
+    "FORBIDDEN",
+  );
+  assert(
+    (
+      await a.client.rpc("muzik_operate", {
+        p_actor: c.id,
+        p_action: "getOperations",
+        p_request: crypto.randomUUID(),
+        p_payload: {},
+      })
+    ).error,
+  );
+  await db.query("insert into private.operators(user_id) values($1)", [c.id]);
+  assert.equal((await ok(c, "getCapabilities", {})).operator, true);
+  pass("운영자 서버 권한·metadata 위조·직접 RPC 차단");
+  const moderation = await ok(a, "createRoom", {
+    name: "운영 검토",
+    nickname: "첫사람",
+  });
+  await ok(b, "joinRoom", { code: moderation.code, nickname: "두사람" });
+  const p = {
+    roomId: moderation.roomId,
+    dateKey: todayKey(),
+    videoId: "dQw4w9WgXcQ",
+    comment: "비공개로 보존할 원문",
+  };
+  const first = await ok(a, "registerTrack", p);
+  await ok(b, "registerTrack", {
+    ...p,
+    videoId: "kJQP7kiw5Fk",
+    comment: "남는 곡",
+  });
+  await ok(b, "reportTrack", {
+    roomId: moderation.roomId,
+    trackId: first.trackId,
+    reason: "검토 요청",
+  });
+  const inbox = await ok(c, "getOperations", {});
+  const report = inbox.reports.find((r: any) => r.track_id === first.trackId);
+  assert(report);
+  const refreshId = crypto.randomUUID();
+  await ok(
+    c,
+    "refreshMeta",
+    { roomId: moderation.roomId, trackId: first.trackId },
+    refreshId,
+  );
+  await ok(
+    c,
+    "refreshMeta",
+    { roomId: moderation.roomId, trackId: first.trackId },
+    refreshId,
+    true,
+  );
+  await denied(
+    c,
+    "refreshMeta",
+    { roomId: moderation.roomId, trackId: first.trackId },
+    "UNAVAILABLE",
+    undefined,
+    true,
+  );
+  const decision = {
+    reportId: report.id,
+    decision: "hide",
+    note: "운영 검토 후 숨김",
+  };
+  const decisionId = crypto.randomUUID();
+  await ok(c, "resolveReport", decision, decisionId);
+  await ok(c, "resolveReport", decision, decisionId);
+  const publicTrack = (
+    await a.client.from("tracks").select("*").eq("id", first.trackId).single()
+  ).data;
+  assert.equal(publicTrack.hidden, true);
+  assert.equal(publicTrack.comment, "");
+  assert.equal(publicTrack.title, "");
+  assert.equal(publicTrack.video_id, "");
+  const day = (
+    await a.client
+      .from("days")
+      .select("*")
+      .eq("room_id", moderation.roomId)
+      .single()
+  ).data;
+  assert.equal(day.track_count, 1);
+  assert.equal(day.cover_video_id, "kJQP7kiw5Fk");
+  assert.equal(day.theme_text, themeFor(todayKey()));
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from private.moderation_archive where original->>'id'=$1",
+        [first.trackId],
+      )
+    ).rows[0].n,
+    1,
+  );
+  assert.equal(
+    (
+      await db.query(
+        "select original->>'comment' c from private.moderation_archive where original->>'id'=$1",
+        [first.trackId],
+      )
+    ).rows[0].c,
+    p.comment,
+  );
+  await denied(a, "registerTrack", p, "HIDDEN_TRACK");
+  assert(
+    (await a.client.schema("private").from("moderation_archive").select("*"))
+      .error,
+  );
+  pass("운영 숨김 원문 보호·집계/표지/주제/당일 슬롯·재시도");
+  const feedbackId = crypto.randomUUID();
+  const feedback = { roomId: moderation.roomId, message: "사용자 피드백" };
+  await ok(a, "sendFeedback", feedback, feedbackId);
+  await ok(a, "sendFeedback", feedback, feedbackId);
+  await denied(c, "sendFeedback", feedback, "FORBIDDEN");
+  const f = (await ok(c, "getOperations", {})).feedback.find(
+    (f: any) => f.room_id === moderation.roomId,
+  );
+  assert(f);
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from private.feedback where room_id=$1",
+        [moderation.roomId],
+      )
+    ).rows[0].n,
+    1,
+  );
+  await denied(
+    a,
+    "resolveFeedback",
+    { feedbackId: f.id, note: "위조" },
+    "FORBIDDEN",
+  );
+  await ok(c, "resolveFeedback", { feedbackId: f.id, note: "확인 완료" });
+  pass("피드백 멤버 권한·멱등 접수·운영 처리");
+  for (const kind of [
+    "visit",
+    "install_open",
+    "install_accepted",
+    "standalone",
+  ]) {
+    await ok(a, "recordEvent", { kind });
+    await ok(a, "recordEvent", { kind });
+  }
+  const events = (
+    await db.query(
+      "select day_key::text,kind from private.daily_events where actor=$1",
+      [a.id],
+    )
+  ).rows;
+  assert.equal(events.length, 4);
+  assert(events.every((e: any) => e.day_key === todayKey()));
+  assert(
+    (await a.client.schema("private").from("daily_events").select("*")).error,
+  );
+  await denied(a, "recordEvent", { kind: "install_success" }, "INVALID_INPUT");
+  assert(
+    (await ok(c, "getOperations", {})).metrics.some(
+      (m: any) => m.kind === "standalone",
+    ),
+  );
+  pass("서버 KST 일 방문 중복·설치 안내/수락/독립 실행 구분");
+  await db.query("delete from private.operators where user_id=$1", [c.id]);
+  await denied(c, "resolveReport", decision, "FORBIDDEN", decisionId);
+  pass("운영 권한 회수 후 성공 요청 재조회 차단");
   console.log(
     `완료: Supabase 실제 로컬 DB/Edge ${checks}개 그룹. Google·YouTube는 테스트 fixture, 운영 연결 없음.`,
   );

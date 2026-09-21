@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Share2, Pencil, Eye, Users } from "lucide-react";
+import { Share2, Pencil, Eye, Users, MessageSquare } from "lucide-react";
 import type { Room, Member } from "../backend";
 import { useCommand } from "../hooks";
 import { useSession } from "../session";
 import { Menu, ErrorText } from "./ui";
 import s from "../App.module.css";
+import { useUpdateGuard } from "../lifecycle";
 export function TeamMenu({
   room,
   members,
@@ -25,6 +26,11 @@ export function TeamMenu({
   const [notice, setNotice] = useState("");
   const [error, setError] = useState<Error | null>(null);
   const mutation = useCommand("updateNickname");
+  useUpdateGuard("nickname", {
+    busy: mutation.isPending,
+    unsafe: editing,
+    editing,
+  });
   const cache = useQueryClient();
   const share = async () => {
     setError(null);
@@ -83,6 +89,10 @@ export function TeamMenu({
               <Link to={`/room/${room.id}/members`} onClick={close}>
                 <Users size={16} />
                 함께하는 팀원
+              </Link>
+              <Link to={`/room/${room.id}/feedback`} onClick={close}>
+                <MessageSquare size={16} />
+                의견 보내기
               </Link>
             </>
           )}

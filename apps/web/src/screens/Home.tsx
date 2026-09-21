@@ -7,8 +7,12 @@ import { loadTeamSummaries, supabase } from "../backend";
 import { readLocal } from "../local";
 import { State } from "../components/ui";
 import s from "../App.module.css";
+import { InstallEntry } from "../components/Pwa";
+import { LocalDrafts } from "../components/LocalDrafts";
+import { useOnline } from "../lifecycle";
 export function Home() {
-  const { session, loading } = useSession();
+  const { session, loading, localUid } = useSession();
+  const online = useOnline();
   const today = useToday();
   const teams = useQuery({
     queryKey: ["teams", session?.user.id, today],
@@ -20,6 +24,19 @@ export function Home() {
     {},
   );
   if (loading) return <State page />;
+  if (!online)
+    return (
+      <section className={s.stack}>
+        <h1>MUZIK</h1>
+        <p>오프라인이에요. 팀 조회와 음악 재생은 연결 후 사용할 수 있어요.</p>
+        {localUid ? (
+          <LocalDrafts uid={localUid} />
+        ) : (
+          <p>이 기기에 확인된 계정의 초안이 없어요.</p>
+        )}
+        <InstallEntry />
+      </section>
+    );
   if (!session)
     return (
       <section className={s.stack}>
@@ -49,6 +66,8 @@ export function Home() {
             </Link>
           </div>
         </section>
+        {localUid && <LocalDrafts uid={localUid} />}
+        <InstallEntry />
         {!supabase && (
           <section className={s.section}>
             <h2>서비스 연결 준비 중</h2>
@@ -116,6 +135,8 @@ export function Home() {
           초대 코드로 참여
         </Link>
       )}
+      <LocalDrafts uid={session.user.id} />
+      <InstallEntry />
     </section>
   );
 }

@@ -17,6 +17,7 @@ import { State, ErrorText } from "../components/ui";
 import s from "../App.module.css";
 import { Protected } from "./Auth";
 import { readLocal, writeLocal } from "../local";
+import { useUpdateGuard } from "../lifecycle";
 export function Invite() {
   const { code } = useParams();
   if (!code || !INVITE_CODE.test(code.toUpperCase()))
@@ -104,6 +105,11 @@ export function TeamForm({
     }
   }, [formKey, name, nickname]);
   const mutation = useCommand(create ? "createRoom" : "joinRoom");
+  useUpdateGuard("team-form", {
+    busy: mutation.isPending,
+    unsafe: Boolean(name || nickname || code),
+    editing: Boolean(name || nickname || code),
+  });
   const navigate = useNavigate();
   const cache = useQueryClient();
   const submit = async (event: FormEvent) => {

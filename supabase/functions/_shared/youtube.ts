@@ -3,8 +3,12 @@ import { fail, rpc } from "./handler.ts";
 export async function loadVideo(
   videoId: string,
   _request: Request,
+  refresh = false,
 ): Promise<Video> {
-  const cached = await rpc("muzik_cache_get", { p_video: videoId });
+  const cached = await rpc(
+    refresh ? "muzik_cache_refresh_get" : "muzik_cache_get",
+    { p_video: videoId },
+  );
   if (cached) return cached as Video;
   const key = Deno.env.get("YOUTUBE_API_KEY");
   if (!key) fail("UNAVAILABLE");

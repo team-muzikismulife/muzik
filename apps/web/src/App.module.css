@@ -5,6 +5,11 @@
   padding: env(safe-area-inset-top) var(--s5)
     calc(var(--s8) + env(safe-area-inset-bottom));
 }
+.installPanel {
+  max-width: 600px;
+  margin: auto;
+  padding: 24px 20px calc(32px + env(safe-area-inset-bottom));
+}
 .header {
   min-height: 80px;
   display: flex;

@@ -118,5 +118,3 @@ begin
   return result;
 end;
 $$;
-
-

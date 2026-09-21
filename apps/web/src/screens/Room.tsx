@@ -20,7 +20,8 @@ import {
   todayKey,
   themeFor,
 } from "../../../../packages/domain/index";
-import { listDrafts } from "../../../../packages/domain/drafts";
+import { listDrafts, loadDraft } from "../../../../packages/domain/drafts";
+import { useOnline } from "../lifecycle";
 import { useSession } from "../session";
 import { useRoom, useToday } from "../hooks";
 import { touchTeam, useHidden } from "../local";
@@ -33,13 +34,16 @@ import s from "../App.module.css";
 const TrackEditor = lazy(() => import("./TrackEditor"));
 const History = lazy(() => import("./History"));
 const Player = lazy(() => import("../components/Player"));
+const Feedback = lazy(() => import("./Feedback"));
 type View = {
   playlist?: boolean;
   editor?: boolean;
   members?: boolean;
   history?: boolean;
+  feedback?: boolean;
 };
 export default function RoomRoute(props: View) {
+  const { session, localUid } = useSession();
   const { id, dateKey, mode } = useParams();
   const [params] = useSearchParams();
   const today = useToday();
@@ -58,6 +62,31 @@ export default function RoomRoute(props: View) {
     (props.editor && !["new", "edit"].includes(mode || ""))
   )
     return <Invalid />;
+  if (
+    props.editor &&
+    !session &&
+    localUid &&
+    loadDraft(localStorage, {
+      uid: localUid,
+      roomId: id,
+      dateKey: date,
+      mode: mode === "edit" ? "edit" : "new",
+      trackId: record,
+    })
+  )
+    return (
+      <Suspense fallback={<State page />}>
+        <TrackEditor
+          key={`${localUid}:${id}:${date}:${mode}:${record}`}
+          roomId={id}
+          date={date}
+          mode={mode === "edit" ? "edit" : "new"}
+          expectedId={record}
+          uid={localUid}
+          accessConfirmed={false}
+        />
+      </Suspense>
+    );
   return (
     <Protected>
       <RoomContent
@@ -81,9 +110,41 @@ function RoomContent({
   const uid = session!.user.id;
   const result = useRoom(id, date, uid);
   const hidden = useHidden(uid, id);
+  const online = useOnline();
   useEffect(() => {
     if (result.data) touchTeam(uid, id);
   }, [uid, id, Boolean(result.data)]);
+  const localDraft =
+    view.editor &&
+    loadDraft(localStorage, {
+      uid,
+      roomId: id,
+      dateKey: date,
+      mode,
+      trackId: record,
+    });
+  if (localDraft && (!online || !result.data))
+    return (
+      <Suspense fallback={<State page />}>
+        <TrackEditor
+          key={`${uid}:${id}:${date}:${mode}:${record}`}
+          roomId={id}
+          date={date}
+          mode={mode}
+          expectedId={record}
+          uid={uid}
+          accessConfirmed={false}
+        />
+      </Suspense>
+    );
+  if (!online && !result.data)
+    return (
+      <State page title="오프라인이에요">
+        <Link className={s.secondary} to="/">
+          보관한 초안으로
+        </Link>
+      </State>
+    );
   if (result.isPending) return <State page title="팀의 음악을 불러오는 중" />;
   if (result.isError)
     return (
@@ -100,6 +161,12 @@ function RoomContent({
     );
   const data = result.data;
   const mine = data.tracks.find((t) => t.user_id === uid);
+  if (view.feedback)
+    return (
+      <Suspense fallback={<State page />}>
+        <Feedback key={`${uid}:${id}`} uid={uid} roomId={id} />
+      </Suspense>
+    );
   if (view.editor && mode === "edit" && !record && !mine)
     return (
       <State page title="수정할 곡을 찾지 못했어요">

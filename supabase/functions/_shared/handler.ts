@@ -32,7 +32,11 @@ export async function rpc(name: string, args: Record<string, unknown>) {
 }
 export function createHandler(options: {
   origins: string[];
-  loadVideo: (videoId: string, request: Request) => Promise<Video>;
+  loadVideo: (
+    videoId: string,
+    request: Request,
+    refresh?: boolean,
+  ) => Promise<Video>;
 }) {
   return async (request: Request) => {
     const origin = request.headers.get("Origin");
@@ -108,10 +112,19 @@ export function createHandler(options: {
         );
       let metadata = null;
       if (
-        ["previewTrack", "registerTrack", "updateTrack"].includes(body.action)
+        [
+          "previewTrack",
+          "registerTrack",
+          "updateTrack",
+          "refreshMeta",
+        ].includes(body.action)
       ) {
         try {
-          metadata = await options.loadVideo(payload!.videoId, request);
+          metadata = await options.loadVideo(
+            body.action === "refreshMeta" ? prepared.videoId : payload!.videoId,
+            request,
+            body.action === "refreshMeta",
+          );
         } catch (error) {
           // 외부 조회 중 같은 요청이 먼저 커밋되었으면 성공 결과를 복원한다.
           const cached = await rpc("muzik_replay", args);
@@ -122,7 +135,20 @@ export function createHandler(options: {
       const result =
         body.action === "previewTrack"
           ? metadata
-          : await rpc("muzik_mutate", { ...args, p_metadata: metadata });
+          : await rpc(
+              [
+                "getCapabilities",
+                "getOperations",
+                "resolveReport",
+                "sendFeedback",
+                "resolveFeedback",
+                "recordEvent",
+                "refreshMeta",
+              ].includes(body.action)
+                ? "muzik_operate"
+                : "muzik_mutate",
+              { ...args, p_metadata: metadata },
+            );
       return new Response(JSON.stringify(result), { headers });
     } catch (error) {
       const code = errorCode(error instanceof Error ? error.message : null);

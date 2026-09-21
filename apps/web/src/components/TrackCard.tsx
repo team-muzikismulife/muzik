@@ -6,6 +6,7 @@ import type { Track } from "../backend";
 import { useCommand } from "../hooks";
 import { ErrorText, Menu } from "./ui";
 import s from "../App.module.css";
+import { useUpdateGuard } from "../lifecycle";
 
 export function TrackCard({
   roomId,
@@ -28,6 +29,11 @@ export function TrackCard({
   const [reportOpen, setReportOpen] = useState(false);
   const [reason, setReason] = useState("부적절한 내용");
   const [reported, setReported] = useState(false);
+  useUpdateGuard(`track-${track.id}`, {
+    busy: remove.isPending || report.isPending,
+    unsafe: reportOpen,
+    editing: reportOpen,
+  });
   const deleteTrack = async () => {
     if (!confirm("오늘의 곡을 삭제할까요?")) return;
     try {
