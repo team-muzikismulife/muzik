@@ -518,16 +518,16 @@ try {
   assert.equal(publicTrack.comment, "");
   assert.equal(publicTrack.title, "");
   assert.equal(publicTrack.video_id, "");
-  const day = (
+  const moderatedDay = (
     await a.client
       .from("days")
       .select("*")
       .eq("room_id", moderation.roomId)
       .single()
   ).data;
-  assert.equal(day.track_count, 1);
-  assert.equal(day.cover_video_id, "kJQP7kiw5Fk");
-  assert.equal(day.theme_text, themeFor(todayKey()));
+  assert.equal(moderatedDay.track_count, 1);
+  assert.equal(moderatedDay.cover_video_id, "kJQP7kiw5Fk");
+  assert.equal(moderatedDay.theme_text, themeFor(todayKey()));
   assert.equal(
     (
       await db.query(
