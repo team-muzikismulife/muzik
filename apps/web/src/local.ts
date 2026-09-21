@@ -12,7 +12,10 @@ function subscribe(fn: () => void) {
 export function readLocal<T>(key: string, fallback: T): T {
   try {
     const value = localStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
+    const parsed = value ? JSON.parse(value) : null;
+    return parsed !== null && typeof parsed === typeof fallback
+      ? parsed
+      : fallback;
   } catch {
     return fallback;
   }
@@ -33,7 +36,7 @@ export function touchTeam(uid: string, id: string) {
     const recent = readLocal<Record<string, number>>(`muzik:${uid}:recent`, {});
     writeLocal(`muzik:${uid}:recent`, { ...recent, [id]: Date.now() });
   } catch {
-    /* 関覧は保存できなくても続ける */
+    /* Browsing still works when local preferences cannot be saved. */
   }
 }
 export function useHidden(uid: string, room: string) {
@@ -51,7 +54,7 @@ export function useHidden(uid: string, room: string) {
     if (Array.isArray(parsed))
       ids = parsed.filter((x) => typeof x === "string" && UUID.test(x));
   } catch {
-    /* 破損した設定は空として扱う */
+    /* Ignore damaged local preferences. */
   }
   const set = (next: string[]) => writeLocal(key, [...new Set(next)]);
   return {
