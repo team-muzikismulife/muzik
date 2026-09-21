@@ -60,6 +60,7 @@ export function App() {
         data-app-version={import.meta.env.VITE_APP_VERSION || "local"}
       >
         <Header />
+        <div id="install-slot" />
         <main id="content" tabIndex={-1}>
           <Boundary key={location.pathname}>
             <Suspense fallback={<State page />}>

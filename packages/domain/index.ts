@@ -143,7 +143,13 @@ export function validatePayload(
     },
     recordEvent: {
       kind: (v) =>
-        ["visit", "install_open", "install_accepted", "standalone"].includes(v),
+        [
+          "visit",
+          "install_open",
+          "install_request",
+          "install_accepted",
+          "standalone",
+        ].includes(v),
     },
     refreshMeta: { roomId: (v) => UUID.test(v), trackId: (v) => UUID.test(v) },
   };

@@ -6,6 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
+import { useLocation } from "react-router";
 import { Download, Copy, RefreshCw, X } from "lucide-react";
 import {
   installMode,
@@ -24,6 +26,10 @@ interface InstallEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 const Context = createContext({ open: () => {}, installed: false });
+const observedInstallKey = "muzik:install-observed";
+const standalone = () =>
+  matchMedia("(display-mode: standalone)").matches ||
+  Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
 export const firstTrackSaved = (uid: string) => {
   try {
     writeLocal(`muzik:${uid}:first-track`, true);
@@ -34,13 +40,13 @@ export const firstTrackSaved = (uid: string) => {
 };
 export function PwaProvider({ children }: { children: ReactNode }) {
   const { session } = useSession();
+  const locationState = useLocation();
+  const safety = useUpdateSafety();
   const uid = session?.user.id;
   const online = useOnline();
   const day = useToday();
   const [installed, setInstalled] = useState(
-    () =>
-      matchMedia("(display-mode: standalone)").matches ||
-      Boolean((navigator as Navigator & { standalone?: boolean }).standalone),
+    () => standalone() || readLocal(observedInstallKey, false),
   );
   const [prompt, setPrompt] = useState<InstallEvent | null>(null);
   const [opened, setOpened] = useState(false);
@@ -56,11 +62,14 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     userAgent: navigator.userAgent,
     prompt: Boolean(prompt),
   });
-  const open = () => {
+  const show = () => {
     opener.current = document.activeElement as HTMLElement;
     setOpened(true);
     setError(null);
+  };
+  const open = () => {
     recordMetric(uid, "install_open");
+    show();
   };
   const close = () => {
     try {
@@ -70,15 +79,55 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     opener.current?.focus();
   };
   useEffect(() => {
+    let active = true;
+    let receivedInstallSignal = false;
     const before = (e: Event) => {
+      receivedInstallSignal = true;
       e.preventDefault();
+      if (!standalone()) {
+        setInstalled(false);
+        try {
+          localStorage.removeItem(observedInstallKey);
+        } catch {}
+      }
       setPrompt(e as InstallEvent);
     };
     const done = () => {
       setInstalled(true);
       setOpened(false);
       setPrompt(null);
+      try {
+        writeLocal(observedInstallKey, true);
+      } catch {}
     };
+    const related = (
+      navigator as Navigator & {
+        getInstalledRelatedApps?: () => Promise<
+          { platform: string; id?: string; url?: string }[]
+        >;
+      }
+    ).getInstalledRelatedApps;
+    if (related)
+      void related
+        .call(navigator)
+        .then((apps) => {
+          if (
+            active &&
+            !receivedInstallSignal &&
+            apps.some(
+              (app) =>
+                app.platform === "webapp" &&
+                ((app.id &&
+                  new URL(app.id, location.origin).href ===
+                    `${location.origin}/`) ||
+                  (app.url &&
+                    new URL(app.url, location.origin).href ===
+                      `${location.origin}/manifest.webmanifest`)),
+            )
+          )
+            done();
+        })
+        .catch(() => {});
     const media = matchMedia("(display-mode: standalone)");
     const display = () => {
       if (media.matches) done();
@@ -87,6 +136,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     window.addEventListener("appinstalled", done);
     media.addEventListener("change", display);
     return () => {
+      active = false;
       window.removeEventListener("beforeinstallprompt", before);
       window.removeEventListener("appinstalled", done);
       media.removeEventListener("change", display);
@@ -103,6 +153,12 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const suggest = () => {
       if (!uid || mode === "installed" || mode === "unavailable") return;
+      if (safety.busy || safety.unsafe || safety.editing) return;
+      if (
+        locationState.pathname !== "/" &&
+        !/^\/room\/[0-9a-f-]{36}$/.test(locationState.pathname)
+      )
+        return;
       if (
         maySuggestInstall(
           readLocal(`muzik:${uid}:first-track`, false),
@@ -116,107 +172,119 @@ export function PwaProvider({ children }: { children: ReactNode }) {
         } catch {
           return;
         }
-        open();
+        show();
       }
     };
     suggest();
     window.addEventListener("muzik-first-track", suggest);
     return () => window.removeEventListener("muzik-first-track", suggest);
-  }, [uid, mode, day]);
+  }, [
+    uid,
+    mode,
+    day,
+    locationState.pathname,
+    safety.busy,
+    safety.unsafe,
+    safety.editing,
+  ]);
   useEffect(() => {
     if (opened) document.getElementById("install-heading")?.focus();
   }, [opened]);
   return (
     <Context.Provider value={{ open, installed }}>
       {children}
-      {opened && !installed && (
-        <section className={s.installPanel} aria-labelledby="install-heading">
-          <div className={s.between}>
-            <h2 id="install-heading" tabIndex={-1}>
-              홈 화면에 MUZIK
-            </h2>
-            <button
-              className={s.icon}
-              aria-label="설치 안내 닫기"
-              onClick={close}
-            >
-              <X />
-            </button>
-          </div>
-          {mode === "unavailable" ? (
-            <p className={s.notice}>
-              정식 주소와 서비스 연결을 준비 중이에요. 이 미리보기에서는
-              설치하지 마세요.
-            </p>
-          ) : mode === "embedded" ? (
-            <>
-              <p>Safari 또는 Chrome에서 이 링크를 열어 주세요.</p>
+      {opened &&
+        !installed &&
+        createPortal(
+          <section className={s.installPanel} aria-labelledby="install-heading">
+            <div className={s.between}>
+              <h2 id="install-heading" tabIndex={-1}>
+                홈 화면에 MUZIK
+              </h2>
               <button
-                className={s.secondary}
-                onClick={() =>
-                  void navigator.clipboard
-                    .writeText(location.href)
-                    .catch(() =>
-                      setError(
-                        new Error(
-                          "링크를 복사하지 못했어요. 브라우저 주소를 직접 복사해 주세요.",
-                        ),
-                      ),
-                    )
-                }
+                className={s.icon}
+                aria-label="설치 안내 닫기"
+                onClick={close}
               >
-                <Copy size={18} />
-                링크 복사
+                <X />
               </button>
-            </>
-          ) : mode === "ios" ? (
-            <p>
-              Safari의 공유 버튼을 누르고 ‘홈 화면에 추가’를 선택한 뒤 ‘추가’를
-              눌러 주세요.
-            </p>
-          ) : mode === "prompt" ? (
-            <button
-              className={s.primary}
-              disabled={busy || accepted}
-              onClick={async () => {
-                if (!prompt) return;
-                setBusy(true);
-                try {
-                  await prompt.prompt();
-                  const choice = await prompt.userChoice;
-                  if (choice.outcome === "accepted") {
-                    setAccepted(true);
-                    recordMetric(uid, "install_accepted");
-                  } else close();
-                  setPrompt(null);
-                } catch {
-                  setError(
-                    new Error(
-                      "설치를 시작하지 못했어요. 브라우저 메뉴에서 설치를 확인해 주세요.",
-                    ),
-                  );
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <Download size={18} />홈 화면에 추가
-            </button>
-          ) : (
-            <p>
-              브라우저 메뉴에서 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 확인해 주세요.
-              지원하지 않으면 웹에서 계속 이용할 수 있어요.
-            </p>
-          )}
-          {accepted && (
-            <p role="status">
-              설치 요청을 수락했어요. 설치 완료 여부는 브라우저에서 확인해
-              주세요.
-            </p>
-          )}
-          <ErrorText error={error} />
-        </section>
-      )}
+            </div>
+            {mode === "unavailable" ? (
+              <p className={s.notice}>
+                정식 주소와 서비스 연결을 준비 중이에요. 이 미리보기에서는
+                설치하지 마세요.
+              </p>
+            ) : mode === "embedded" ? (
+              <>
+                <p>Safari 또는 Chrome에서 이 링크를 열어 주세요.</p>
+                <button
+                  className={s.secondary}
+                  onClick={() =>
+                    void navigator.clipboard
+                      .writeText(location.href)
+                      .catch(() =>
+                        setError(
+                          new Error(
+                            "링크를 복사하지 못했어요. 브라우저 주소를 직접 복사해 주세요.",
+                          ),
+                        ),
+                      )
+                  }
+                >
+                  <Copy size={18} />
+                  링크 복사
+                </button>
+              </>
+            ) : mode === "ios" ? (
+              <p>
+                Safari의 공유 버튼을 누르고 ‘홈 화면에 추가’를 선택한 뒤
+                ‘추가’를 눌러 주세요.
+              </p>
+            ) : mode === "prompt" ? (
+              <button
+                className={s.primary}
+                disabled={busy || accepted}
+                onClick={async () => {
+                  if (!prompt) return;
+                  setBusy(true);
+                  recordMetric(uid, "install_request");
+                  try {
+                    await prompt.prompt();
+                    const choice = await prompt.userChoice;
+                    if (choice.outcome === "accepted") {
+                      setAccepted(true);
+                      recordMetric(uid, "install_accepted");
+                    } else close();
+                    setPrompt(null);
+                  } catch {
+                    setError(
+                      new Error(
+                        "설치를 시작하지 못했어요. 브라우저 메뉴에서 설치를 확인해 주세요.",
+                      ),
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Download size={18} />홈 화면에 추가
+              </button>
+            ) : (
+              <p>
+                브라우저 메뉴에서 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 확인해
+                주세요. 지원하지 않으면 웹에서 계속 이용할 수 있어요.
+              </p>
+            )}
+            {accepted && (
+              <p role="status">
+                설치 요청을 수락했어요. 설치 완료 여부는 브라우저에서 확인해
+                주세요.
+              </p>
+            )}
+            <ErrorText error={error} />
+          </section>,
+          document.getElementById("install-slot") || document.body,
+        )}
     </Context.Provider>
   );
 }

@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/check-env.mjs && tsc --noEmit && node scripts/icons.mjs && vite build && node scripts/check-bundle.mjs",
+    "build:release": "node scripts/check-env.mjs --release && npm run build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:db": "tsx ../../tests/integration/supabase.test.ts",

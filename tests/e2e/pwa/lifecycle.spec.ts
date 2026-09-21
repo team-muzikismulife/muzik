@@ -133,6 +133,24 @@ test.describe("PWA 수명과 운영", () => {
           ).rows[0].count,
         ),
       ).toBe(0);
+      for (const kind of [
+        "install_open",
+        "install_request",
+        "install_accepted",
+      ]) {
+        await expect
+          .poll(async () =>
+            Number(
+              (
+                await db.query(
+                  "select count(*) from private.daily_events where actor=$1 and kind=$2",
+                  [t.actor.id, kind],
+                )
+              ).rows[0].count,
+            ),
+          )
+          .toBe(1);
+      }
       await db.end();
       await t.page.evaluate(() =>
         window.dispatchEvent(new Event("appinstalled")),
@@ -140,6 +158,13 @@ test.describe("PWA 수명과 운영", () => {
       await expect(
         t.page.getByRole("heading", { name: "홈 화면에 MUZIK" }),
       ).toHaveCount(0);
+      await expect(
+        t.page.getByRole("button", { name: "설치 안내", exact: true }),
+      ).toHaveCount(0);
+      await t.page.reload();
+      await expect(
+        t.page.getByRole("heading", { name: "내 팀", exact: true }),
+      ).toBeVisible();
       await expect(
         t.page.getByRole("button", { name: "설치 안내", exact: true }),
       ).toHaveCount(0);
@@ -158,94 +183,186 @@ test.describe("PWA 수명과 운영", () => {
       await t.context.close();
     }
   });
-  test("첫 서버 등록 뒤 한 번 제안·닫기7일·iPhone/인앱/이미설치 안내", async ({
+  test("지원 브라우저 관련 앱 확인·다른 앱 제외·재설치 가능 신호", async ({
     browser,
-  }: any, testInfo: any) => {
-    const t = await setup(browser, {
-      userAgent:
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
-    });
+  }: any) => {
+    const t = await setup(browser);
     try {
-      await t.page.goto(
-        `${origin}/room/${t.room.roomId}/track/new?date=${todayKey()}`,
-      );
-      await t.page
-        .getByLabel("YouTube 링크", { exact: true })
-        .fill("https://youtu.be/dQw4w9WgXcQ");
-      await t.page
-        .getByRole("button", { name: "곡 등록하기", exact: true })
-        .click();
-      await expect(
-        t.page.getByRole("heading", { name: "홈 화면에 MUZIK" }),
-      ).toBeVisible();
-      await expect(t.page.getByText(/Safari의 공유 버튼/)).toBeVisible();
-      await t.page.screenshot({
-        path: testInfo.outputPath("install-ios-390.png"),
-        fullPage: true,
+      await t.context.addInitScript(() => {
+        Object.defineProperty(navigator, "getInstalledRelatedApps", {
+          configurable: true,
+          value: async () => [
+            {
+              platform: "webapp",
+              id:
+                localStorage.getItem("test-related-id") ||
+                "https://another.example/",
+            },
+          ],
+        });
       });
-      await t.page.getByRole("button", { name: "설치 안내 닫기" }).click();
+      await t.page.goto(`${origin}/`);
+      await expect(
+        t.page.getByRole("button", { name: "설치 안내", exact: true }),
+      ).toBeVisible();
+      await t.page.evaluate(() =>
+        localStorage.setItem("test-related-id", `${location.origin}/`),
+      );
       await t.page.reload();
       await expect(
-        t.page.getByRole("heading", { name: "홈 화면에 MUZIK" }),
-      ).toHaveCount(0);
-      await t.page.goto(`${origin}/`);
-      await t.page
-        .getByRole("button", { name: "설치 안내", exact: true })
-        .click();
-      await expect(t.page.getByText(/Safari의 공유 버튼/)).toBeVisible();
-      const embedded = await setup(browser, {
-        userAgent: "Mozilla/5.0 iPhone Safari KAKAOTALK",
-      });
-      await embedded.page.goto(`${origin}/`);
-      await embedded.page
-        .getByRole("button", { name: "설치 안내", exact: true })
-        .click();
-      await expect(
-        embedded.page.getByRole("button", { name: "링크 복사", exact: true }),
-      ).toBeVisible();
-      await embedded.context.close();
-      const installed = await setup(browser);
-      await installed.context.addInitScript(() => {
-        const original = window.matchMedia;
-        window.matchMedia = (query: string) =>
-          query === "(display-mode: standalone)"
-            ? ({
-                ...original.call(window, query),
-                matches: true,
-                addEventListener: () => {},
-                removeEventListener: () => {},
-              } as MediaQueryList)
-            : original.call(window, query);
-      });
-      await installed.page.goto(`${origin}/`);
-      await expect(
-        installed.page.getByRole("heading", { name: "내 팀", exact: true }),
+        t.page.getByRole("heading", { name: "내 팀", exact: true }),
       ).toBeVisible();
       await expect(
-        installed.page.getByRole("button", { name: "설치 안내", exact: true }),
+        t.page.getByRole("button", { name: "설치 안내", exact: true }),
       ).toHaveCount(0);
-      const metricsDb = new (requireWeb("pg").Client)({
-        connectionString: installed.settings.DB_URL,
+      await t.page.evaluate(() => {
+        localStorage.removeItem("test-related-id");
+        window.dispatchEvent(
+          new Event("beforeinstallprompt", { cancelable: true }),
+        );
       });
-      await metricsDb.connect();
-      await expect
-        .poll(async () =>
-          Number(
-            (
-              await metricsDb.query(
-                "select count(*) from private.daily_events where actor=$1 and kind='standalone'",
-                [installed.actor.id],
-              )
-            ).rows[0].count,
-          ),
-        )
-        .toBe(1);
-      await metricsDb.end();
-      await installed.context.close();
+      await expect(
+        t.page.getByRole("button", { name: "설치 안내", exact: true }),
+      ).toBeVisible();
+      await t.page.reload();
+      await expect(
+        t.page.getByRole("button", { name: "설치 안내", exact: true }),
+      ).toBeVisible();
     } finally {
       await t.context.close();
     }
   });
+  for (const width of [360, 390])
+    test(`첫 서버 등록 뒤 안내 viewport·자동 노출 미집계·닫기·iPhone/인앱/이미설치 ${width}`, async ({
+      browser,
+    }: any, testInfo: any) => {
+      const t = await setup(browser, {
+        viewport: { width, height: 844 },
+        userAgent:
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
+      });
+      try {
+        await t.page.goto(
+          `${origin}/room/${t.room.roomId}/track/new?date=${todayKey()}`,
+        );
+        await t.page
+          .getByLabel("YouTube 링크", { exact: true })
+          .fill("https://youtu.be/dQw4w9WgXcQ");
+        await t.page
+          .getByRole("button", { name: "곡 등록하기", exact: true })
+          .click();
+        await expect(
+          t.page.getByRole("heading", { name: "홈 화면에 MUZIK" }),
+        ).toBeVisible();
+        await expect(t.page.getByText(/Safari의 공유 버튼/)).toBeVisible();
+        await expect(t.page).toHaveURL(
+          new RegExp(`/room/${t.room.roomId}\\?date=`),
+        );
+        const close = t.page.getByRole("button", { name: "설치 안내 닫기" });
+        await expect(close).toBeInViewport();
+        await expect(
+          t.page.getByRole("heading", { name: "홈 화면에 MUZIK" }),
+        ).toBeInViewport();
+        expect(
+          await close.evaluate((el: HTMLElement) => {
+            const r = el.getBoundingClientRect();
+            return (
+              r.width >= 44 &&
+              r.height >= 44 &&
+              el.contains(
+                document.elementFromPoint(
+                  r.left + r.width / 2,
+                  r.top + r.height / 2,
+                ),
+              )
+            );
+          }),
+        ).toBe(true);
+        const autoDb = new (requireWeb("pg").Client)({
+          connectionString: t.settings.DB_URL,
+        });
+        await autoDb.connect();
+        expect(
+          Number(
+            (
+              await autoDb.query(
+                "select count(*) from private.daily_events where actor=$1 and kind like 'install_%'",
+                [t.actor.id],
+              )
+            ).rows[0].count,
+          ),
+        ).toBe(0);
+        await autoDb.end();
+        await t.page.screenshot({
+          path: testInfo.outputPath(`install-ios-viewport-${width}.png`),
+          fullPage: false,
+        });
+        await t.page.getByRole("button", { name: "설치 안내 닫기" }).click();
+        await t.page.reload();
+        await expect(
+          t.page.getByRole("heading", { name: "홈 화면에 MUZIK" }),
+        ).toHaveCount(0);
+        await t.page.goto(`${origin}/`);
+        await t.page
+          .getByRole("button", { name: "설치 안내", exact: true })
+          .click();
+        await expect(t.page.getByText(/Safari의 공유 버튼/)).toBeVisible();
+        const embedded = await setup(browser, {
+          userAgent: "Mozilla/5.0 iPhone Safari KAKAOTALK",
+        });
+        await embedded.page.goto(`${origin}/`);
+        await embedded.page
+          .getByRole("button", { name: "설치 안내", exact: true })
+          .click();
+        await expect(
+          embedded.page.getByRole("button", { name: "링크 복사", exact: true }),
+        ).toBeVisible();
+        await embedded.context.close();
+        const installed = await setup(browser);
+        await installed.context.addInitScript(() => {
+          const original = window.matchMedia;
+          window.matchMedia = (query: string) =>
+            query === "(display-mode: standalone)"
+              ? ({
+                  ...original.call(window, query),
+                  matches: true,
+                  addEventListener: () => {},
+                  removeEventListener: () => {},
+                } as MediaQueryList)
+              : original.call(window, query);
+        });
+        await installed.page.goto(`${origin}/`);
+        await expect(
+          installed.page.getByRole("heading", { name: "내 팀", exact: true }),
+        ).toBeVisible();
+        await expect(
+          installed.page.getByRole("button", {
+            name: "설치 안내",
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        const metricsDb = new (requireWeb("pg").Client)({
+          connectionString: installed.settings.DB_URL,
+        });
+        await metricsDb.connect();
+        await expect
+          .poll(async () =>
+            Number(
+              (
+                await metricsDb.query(
+                  "select count(*) from private.daily_events where actor=$1 and kind='standalone'",
+                  [installed.actor.id],
+                )
+              ).rows[0].count,
+            ),
+          )
+          .toBe(1);
+        await metricsDb.end();
+        await installed.context.close();
+      } finally {
+        await t.context.close();
+      }
+    });
   test("오프라인 cold reopen·초안 편집·온라인 명시 저장·만료 계정 복구", async ({
     browser,
   }: any) => {

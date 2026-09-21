@@ -5,6 +5,17 @@ for (const key of Object.keys(env))
     throw new Error(`서버 전용 값은 VITE 환경변수에 둘 수 없습니다: ${key}`);
 const url = env.VITE_SUPABASE_URL?.trim(),
   key = env.VITE_SUPABASE_ANON_KEY?.trim();
+const release = process.argv.includes("--release");
+if (
+  release &&
+  (!url ||
+    !key ||
+    !env.VITE_PUBLIC_ORIGIN ||
+    !/^[0-9a-f]{7,40}$/.test(env.VITE_APP_VERSION || ""))
+)
+  throw new Error(
+    "정식 빌드에는 Supabase 공개 URL/키, 고정 HTTPS origin, 배포 커밋 VITE_APP_VERSION이 모두 필요합니다.",
+  );
 if (env.VITE_PUBLIC_ORIGIN) {
   const origin = new URL(env.VITE_PUBLIC_ORIGIN);
   if (
@@ -21,6 +32,14 @@ if (Boolean(url) !== Boolean(key))
   );
 if (url && key) {
   const parsed = new URL(url);
+  if (parsed.origin !== url || parsed.username || parsed.password)
+    throw new Error("Supabase URL에는 경로·쿼리·인증 정보를 넣을 수 없습니다.");
+  if (
+    release &&
+    (parsed.protocol !== "https:" ||
+      ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname))
+  )
+    throw new Error("정식 빌드에는 실제 HTTPS Supabase 주소가 필요합니다.");
   if (
     parsed.protocol !== "https:" &&
     !["localhost", "127.0.0.1"].includes(parsed.hostname)

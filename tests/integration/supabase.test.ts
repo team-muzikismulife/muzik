@@ -625,6 +625,7 @@ try {
   for (const kind of [
     "visit",
     "install_open",
+    "install_request",
     "install_accepted",
     "standalone",
   ]) {
@@ -637,7 +638,7 @@ try {
       [a.id],
     )
   ).rows;
-  assert.equal(events.length, 4);
+  assert.equal(events.length, 5);
   assert(events.every((e: any) => e.day_key === todayKey()));
   assert(
     (await a.client.schema("private").from("daily_events").select("*")).error,
@@ -649,6 +650,20 @@ try {
     ),
   );
   pass("서버 KST 일 방문 중복·설치 안내/수락/독립 실행 구분");
+  const visitCount = async () =>
+    Number(
+      (await ok(c, "getOperations", {})).metrics.find(
+        (m: any) => m.kind === "visit" && m.day_key === todayKey(),
+      )?.users ?? 0,
+    );
+  const beforeOperator = await visitCount();
+  await ok(c, "recordEvent", { kind: "visit" });
+  assert.equal(await visitCount(), beforeOperator);
+  await db.query("insert into private.operators(user_id) values($1)", [a.id]);
+  assert.equal(await visitCount(), beforeOperator - 1);
+  await db.query("delete from private.operators where user_id=$1", [a.id]);
+  assert.equal(await visitCount(), beforeOperator);
+  pass("계측 계정 수·현재 운영자 과거 기록 포함 집계 제외");
   await db.query("delete from private.operators where user_id=$1", [c.id]);
   await denied(c, "resolveReport", decision, "FORBIDDEN", decisionId);
   pass("운영 권한 회수 후 성공 요청 재조회 차단");

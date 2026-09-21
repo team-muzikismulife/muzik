@@ -147,7 +147,8 @@ export default function Operations() {
   )?.[1];
   const labels: Record<string, string> = {
     visit: "일 방문",
-    install_open: "설치 안내 진입",
+    install_open: "설치 안내 수동 진입",
+    install_request: "설치 요청 버튼 클릭",
     install_accepted: "설치 요청 수락",
     standalone: "독립 창 실행",
   };
@@ -211,14 +212,15 @@ export default function Operations() {
             <section>
               <h2>최근 7일 기록</h2>
               <p className={s.notice}>
-                한국 날짜 기준 계정별 하루 한 번 집계합니다. 설치 요청 수락은
-                설치 완료가 아니며 독립 창 실행은 브라우저 표시 모드 기준입니다.
+                한국 날짜 기준 해당 행동을 한 계정 수예요. 현재 운영자는
+                제외하며 자동 안내 노출은 집계하지 않아요. 설치 요청 수락은 설치
+                완료가 아니며 독립 창 실행은 브라우저 표시 모드 기준입니다.
               </p>
               {data.data.metrics.length ? (
                 <ul>
                   {data.data.metrics.map((m) => (
                     <li key={`${m.day_key}:${m.kind}`}>
-                      {m.day_key} · {labels[m.kind]}: {m.users}명
+                      {m.day_key} · {labels[m.kind]}: {m.users}계정
                     </li>
                   ))}
                 </ul>

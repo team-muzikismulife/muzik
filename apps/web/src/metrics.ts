@@ -2,7 +2,12 @@ import { command } from "./backend";
 import { todayKey } from "../../../packages/domain/index";
 export function recordMetric(
   uid: string | undefined,
-  kind: "visit" | "install_open" | "install_accepted" | "standalone",
+  kind:
+    | "visit"
+    | "install_open"
+    | "install_request"
+    | "install_accepted"
+    | "standalone",
 ) {
   if (!uid || !navigator.onLine) return;
   if (
