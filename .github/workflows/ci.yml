@@ -12,7 +12,6 @@ on:
     branches:
       - main
       - dev
-      - codex/mobile-web-beta
 
 concurrency:
   # PR 번호(또는 브랜치 ref) 기준 — 같은 PR에 새 커밋이 오면 이전 실행을 취소

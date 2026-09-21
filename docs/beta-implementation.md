@@ -13,6 +13,8 @@
 3. origin/dev의 기존 팀 작업과 현재 변경을 비교해 별도 codex/ worktree에서 파일별 통합한다. 원래 checkout의 미커밋 파일은 유지한다. 베타에 필요한 파일만 명시적으로 stage하고 dev 대상 draft PR을 만든다.
 4. Node22 실제 CI 및 관련 브라우저 회귀를 확인한다. 배포 문서를 단일 순서로 정리하고 PR/CI 링크와 제외 파일 관계를 보고서에 남긴다. main merge/운영 배포/결제 변경은 범위 밖이다.
 
+완료: 등록/수정 API 장애 재시도 포함 에뮬레이터31개 PASS, dev 기준 draft PR #40 생성, 실제 GitHub Node22.23.2 CI PASS(35564165553/35564239726), 통합본 두 브라우저 회귀 PASS. 상세와 운영 미완료 항목은 launch-worker-report.md에 기록했다.
+
 2026-09-21. 기존 demo/spark-web 및 미커밋 UI 작업을 보존한다. 총괄 소유 launch-control.md, beta-promotion.md는 수정하지 않는다.
 
 ## 단계

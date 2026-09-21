@@ -1,16 +1,28 @@
 # MUZIK 베타 구현 보고
 
-## MUZIK-BETA-02 진행 (2026-09-21)
+## MUZIK-BETA-02 완료 보고 (2026-09-21)
 - 최신 목표는 실사용 모바일 웹이다. 발표용 신규 작업 없음. 내부 영상 fixture만 사용한다.
 - saveTrack 성공 결과를 외부 API 이전에 조회하고, API 실패 시 동시 커밋 여부를 다시 확인하도록 수정했다. auth/membership 및 입력 digest 검사 유지.
 - 원본 checkout에서 등록/수정 성공 후 unavailable/invalid-argument/resource-exhausted 재시도, payload 변조, 신규 ID 실패, API/집계/이벤트 중복 없음까지 **31개 에뮬레이터 검사 PASS**(Node24). 이전 27개 기록을 대체하는 확장 검사다.
 - origin/dev b10f514 기준 별도 scratch/beta-integration worktree와 codex/mobile-web-beta 브랜치 생성. 원본 checkout의 미커밋 작업 보존. dev 날짜 훅/미션 스냅샷/구독 API/공동 플리 원본 소스 보존. 최신 demo 원격 PR39의 닉네임 표시와 캐시 초기화 수정을 선택 반영. 자세한 manifest는 통합 브랜치 docs/beta-integration.md.
 - 통합 브랜치 npm run lint 및 Functions 빌드 PASS. 통합본 에뮬레이터 31개도 PASS. 두 브라우저 375/390px 및 desktop1280 회귀 PASS, 재입장 닉네임 변경 후 기존 곡/플리 표시 추가 확인. 첫 sandbox 실행은 외부 썸네일 로딩 시간 초과, 네트워크 허용 재실행에서 실제 썸네일 포함 PASS.
-- draft PR: https://github.com/team-muzikismulife/muzik/pull/40 (dev 대상, ea7cf0e). GitHub mergeable=true 확인, 원본 checkout 그대로. PR 생성 시 Actions 실행 목록은 비어 있었고 check-suite도 생성되지 않아 이 통합 브랜치 push에도 동일 CI를 실행하도록 보완한다. Node22 결과는 후속 갱신한다.
+- draft PR: https://github.com/team-muzikismulife/muzik/pull/40 (dev 대상). 구현 커밋 ea7cf0e, 검증 기록 1bdd5ef. GitHub mergeable=true 확인, 원본 checkout 그대로. attach_artifact로 현재 작업에 연결했다.
+- **실제 GitHub Node22 CI PASS**: https://github.com/team-muzikismulife/muzik/actions/runs/35564165553 (ea7cf0e), https://github.com/team-muzikismulife/muzik/actions/runs/35564239726 (1bdd5ef). 로그에서 node v22.23.2, Functions host node@22, 타입/서버 빌드 및 31개 검사 완료를 확인했다. 실제 외부 YouTube 성공과는 별개다.
+- PR 템플릿 검사 PASS: https://github.com/team-muzikismulife/muzik/actions/runs/35564165463 . 최초 Actions 실행 목록이 비어 있어 push 트리거를 임시 추가했으나, 이후 원래 PR 이벤트 실행도 생성·통과한 것을 확인했다. 불필요한 브랜치 전용 트리거는 최종 문서 커밋에서 제거했다. Actions 권한 설정 조회는403이었지만 CI 실행/결과 조회와 PR 작성에는 문제가 없었다.
 - 기존 Vercel GitHub 연결이 PR Preview 빌드를 자동 시도하여 실패 상태를 기록했다: https://vercel.com/muzikismylife/dist/4CazQttkVMhTDGX6ATQ1Ns7L6eZa . 수동 배포/우회 프로젝트 생성은 하지 않았다. 실패 로그 접근 전 원인을 단정하지 않으며 production-only 설정이 아직 미확인인 근거다.
 - 운영 문서 GitHub 정상 인증 안내와 쓰기 중지→서버·인덱스→rules→웹→검증·개방→구버전 순서를 정정했다. 구버전 직접쓰기 클라이언트는 플래그를 따르지 않으므로 점검 rules가 필요함을 명시했다.
 - 의존성 설치가 기존 잠금파일의 취약점 경고(앱 45건, functions 13건)를 출력했다. 자동 major/force 변경은 하지 않았으며 출시 전 의존성 검토가 별도로 필요하다.
 - 이 단계에서 main merge/서버·rules·Vercel 배포/결제 변경 없음.
+
+### 총괄 후속 확인
+- 이번 단위의 재시도 수정·31개 회귀·dev 통합 draft PR·Node22 실제 CI·운영 문서 정정은 완료했다. main 병합은 리뷰 후 별도다.
+- CodeRabbit 상태는 success로 보이지만 댓글상 draft 자동 리뷰 생략이다. 코드 리뷰 완료로 계산하지 않는다.
+- 기존 Vercel 자동 Preview 실패는 Node22 CI와 별도 출시 차단 항목이다. 정식 프로젝트/production-only 설정/빌드 로그는 로그인 후 확인해야 한다.
+- 실제 Firebase/YouTube/App Check 종단검증, Safari/카카오 실기기, 의존성 취약점 검토, 운영 설정과 결제 승인, 구버전 데이터 이관은 남았다. 로컬 검증만으로 홍보를 열지 않는다.
+- 최신 통합 소스는 scratch/beta-integration에 있다. 원래 checkout에는 사용자 작업 보존을 위해 통합 소스를 역복사하지 않았고, 총괄 조회용 보고서/운영 문서만 동기화했다. 테스트 이미지는 로컬에만 남겼다.
+
+## 이전 MUZIK-BETA-01 기록
+아래는 직전 실행 당시의 기록이며, 27개 검사/PR 미생성/Node22 미검증 상태는 위 BETA-02 결과로 대체된다.
 
 2026-09-21 로컬 베타 구현 및 검증 완료. **운영 배포 미완료**, 공개 모집 보류.
 
