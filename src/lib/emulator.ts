@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { appMode } from './runtimeConfig';
 
 /**
  * Emulator Suite 접속 (백엔드설계.md §7)
@@ -16,10 +17,9 @@ export const EMULATOR_PORTS = {
 } as const;
 
 /**
- * 에뮬레이터를 쓰는가 — 개발 빌드에서 기본 on.
- * 실 Firebase 프로젝트를 보려면 `.env`에 `EXPO_PUBLIC_USE_EMULATOR=false`.
+ * 에뮬레이터는 APP_MODE=emulator를 명시한 경우만 연결한다.
  */
-export const useEmulator = __DEV__ && process.env.EXPO_PUBLIC_USE_EMULATOR !== 'false';
+export const useEmulator = appMode === 'emulator';
 
 /**
  * 에뮬레이터가 떠 있는 호스트. Metro 호스트와 같은 머신이라고 가정한다.

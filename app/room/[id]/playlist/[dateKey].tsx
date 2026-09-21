@@ -1,27 +1,34 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Linking, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { aspect, colors, radius, size, spacing, typography } from '@/theme/tokens';
+import { YoutubePreview } from '@/components/YoutubePreview';
+import { aspect, colors, opacity, radius, size, spacing, typography } from '@/theme/tokens';
 import { BleedScreen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
 import { Icon, IconButton } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Avatar } from '@/components/Avatar';
 import { YoutubeArt } from '@/components/YoutubeArt';
-import { YoutubePreview } from '@/components/YoutubePreview';
+import { TrackActions } from '@/components/TrackActions';
+import { trackKey, useHiddenTracks } from '@/store/hiddenTracks';
 import { buildWatchVideosUrl } from '@/lib/youtube';
+import { addTracksToSharedPlaylist } from '@/lib/api';
+import { useDateKey } from '@/hooks/useDateKey';
+import { toMessage } from '@/lib/errors';
 import { missionFor } from '@/lib/themes';
+import { nicknameResolver } from '@/lib/displayName';
+import { useRoomStore } from '@/store/room';
+import { useConfigStore } from '@/store/config';
 import { toast } from '@/store/ui';
-import { usePlaylistStore } from '@/store/playlist';
-import { DateKeySchema } from '@/schemas';
-import type { Track } from '@/types/models';
 
 /**
- * 플레이리스트 상세 (Figma 4:1332)
+ * 플레이리스트 상세 (Figma 4:1332) — 실데이터 구독 (M3)
  * 헤로 풀블리드 + 하단 페이드 / 참여자 겹침 아바타 / [유튜브에서 재생] + [미리듣기] / 트랙 리스트
- * dateKey별 실제 tracks/days 데이터를 보여준다. 오늘은 실시간, 과거는 1회 조회한다.
+ *
+ * dateKey는 라우트 고정값 → 그 날짜의 tracks/members/room을 room store로 구독한다.
+ * 히어로·재생 순서는 order asc의 첫 곡이 곧 그날 대표(cover)라 tracks[0]에서 파생한다.
  */
 const LIST_CONTENT = { paddingBottom: spacing.xxl };
 
@@ -37,50 +44,31 @@ export default function PlaylistDetail() {
   const insets = useSafeAreaInsets();
   const [queueIndex, setQueueIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
+  const [savingShared, setSavingShared] = useState(false);
 
-  const roomId = typeof id === 'string' ? id : '';
-  const rawDateKey = typeof dateKey === 'string' ? dateKey : '';
-  const selectedDateKey = DateKeySchema.safeParse(rawDateKey).success ? rawDateKey : '';
-  const status = usePlaylistStore((s) => s.status);
-  const error = usePlaylistStore((s) => s.error);
-  const tracks = usePlaylistStore((s) => s.tracks);
-  const day = usePlaylistStore((s) => s.day);
-  const loadPlaylist = usePlaylistStore((s) => s.load);
+  const room = useRoomStore((s) => s.room);
+  const members = useRoomStore((s) => s.members);
+  const allTracks = useRoomStore((s) => s.tracks);
+  const hidden = useHiddenTracks(s => s.keys);
+  const tracks = allTracks.filter(t => !t.hidden && !hidden.includes(trackKey(id, t)));
+  const days = useRoomStore(s => s.days);
+  const status = useRoomStore((s) => s.status);
+  const error = useRoomStore((s) => s.error);
+  const subscribe = useRoomStore((s) => s.subscribe);
+  const handoffMode = useConfigStore((s) => s.handoffMode);
+  const selectedIsToday = dateKey === useDateKey();
+  const who = useMemo(() => nicknameResolver(members), [members]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!roomId || !selectedDateKey) return undefined;
-      return loadPlaylist(roomId, selectedDateKey);
-    }, [roomId, selectedDateKey, retryKey, loadPlaylist]),
-  );
-
-  useEffect(() => {
-    setQueueIndex(0);
-    setPlaying(false);
-  }, [roomId, selectedDateKey]);
+  // 포커스 중에만 구독 — 이 날짜의 tracks/members/room (이탈 시 unsubscribe)
+  useFocusEffect(useCallback(() => subscribe(id, dateKey), [id, dateKey, subscribe]));
 
   // 미리듣기 큐 — embeddable === false / unavailable 곡은 인앱 재생이 안 된다
   const playable = tracks.filter((t) => t.embeddable && !t.unavailable);
   const current = playable[queueIndex];
-
-  useEffect(() => {
-    if (queueIndex < playable.length) return;
-    setQueueIndex(Math.max(playable.length - 1, 0));
-    if (playable.length === 0) setPlaying(false);
-  }, [playable.length, queueIndex]);
-
-  const coverVideoId = day?.coverVideoId || tracks[0]?.videoId || '';
-  const participants = Array.from(new Map(tracks.map((t) => [t.uid, t])).values());
-  const formattedDate = selectedDateKey ? formatDate(selectedDateKey) : '선택한 날짜';
-
-  const goBackToRoom = () => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-    router.replace(`/room/${roomId}`);
-  };
+  // 히어로 = 그날의 대표 곡 = order 최소(첫 등록) 곡. days.coverVideoId와 같은 값이다.
+  const coverVideoId = tracks[0]?.videoId ?? '';
+  // 킬스위치: first_video면 첫 곡 watch URL만 열고 미리듣기를 메인으로 승격 (유튜브연동설계 §3-3)
+  const previewPrimary = handoffMode === 'first_video';
 
   /** 메인 재생: 유튜브 앱으로 핸드오프 (무인증·무쿼터 임시 재생목록) */
   const playOnYoutube = async () => {
@@ -90,8 +78,12 @@ export default function PlaylistDetail() {
       toast('재생할 수 있는 곡이 없어요');
       return;
     }
+    // first_video 킬스위치: watch_videos가 막혔을 때 첫 곡만 연다
+    const url = previewPrimary
+      ? `https://www.youtube.com/watch?v=${ids[0]}`
+      : buildWatchVideosUrl(ids);
     try {
-      await Linking.openURL(buildWatchVideosUrl(ids));
+      await Linking.openURL(url);
     } catch {
       // 유튜브 앱 부재·엔드포인트 차단 → 첫 곡 단독 재생으로 폴백
       toast('유튜브를 열 수 없어 첫 곡만 재생해요');
@@ -101,31 +93,49 @@ export default function PlaylistDetail() {
     }
   };
 
-  if (!roomId || !selectedDateKey) {
-    return (
-      <BleedScreen>
-        <StateView
-          status="error"
-          title="플레이리스트를 열 수 없어요"
-          message="팀 또는 날짜 정보가 올바르지 않아요."
-          actionLabel="팀 목록으로"
-          onAction={() => router.replace('/')}
-        />
-      </BleedScreen>
-    );
-  }
+  const startPreview = () => {
+    if (playable.length === 0) {
+      toast('미리듣기할 수 있는 곡이 없어요');
+      return;
+    }
+    setQueueIndex(0);
+    setPlaying(true);
+  };
+
+  const addToShared = async () => {
+    if (savingShared) return;
+    const candidates = tracks.filter((t) => !t.unavailable);
+    if (candidates.length === 0) {
+      toast('공동 플리에 담을 수 있는 곡이 없어요');
+      return;
+    }
+    setSavingShared(true);
+    try {
+      const result = await addTracksToSharedPlaylist({ roomId: id, tracks: candidates });
+      toast(result.addedCount > 0 ? `${result.addedCount}곡을 공동 플리에 담았어요` : '이미 모두 담겨 있어요');
+    } catch (e: unknown) {
+      toast(toMessage(e));
+    } finally {
+      setSavingShared(false);
+    }
+  };
+
+
+  const backBar = (
+    <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
+      <IconButton
+        name="chevronLeft"
+        accessibilityLabel="뒤로 가기"
+        variant="circle"
+        onPress={() => router.back()}
+      />
+    </View>
+  );
 
   if (status === 'loading') {
     return (
       <BleedScreen>
-        <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
-          <IconButton
-            name="chevronLeft"
-            accessibilityLabel="뒤로 가기"
-            variant="circle"
-            onPress={goBackToRoom}
-          />
-        </View>
+        {backBar}
         <StateView status="loading" />
       </BleedScreen>
     );
@@ -134,42 +144,34 @@ export default function PlaylistDetail() {
   if (status === 'error') {
     return (
       <BleedScreen>
-        <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
-          <IconButton
-            name="chevronLeft"
-            accessibilityLabel="뒤로 가기"
-            variant="circle"
-            onPress={goBackToRoom}
-          />
-        </View>
+        {backBar}
         <StateView
           status="error"
           title="플레이리스트를 불러오지 못했어요"
           message={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'}
           actionLabel="다시 시도"
-          onAction={() => setRetryKey((key) => key + 1)}
+          onAction={() => subscribe(id, dateKey)}
         />
       </BleedScreen>
     );
   }
 
-  if (status === 'empty') {
+  if (tracks.length === 0) {
     return (
       <BleedScreen>
-        <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
-          <IconButton
-            name="chevronLeft"
-            accessibilityLabel="뒤로 가기"
-            variant="circle"
-            onPress={goBackToRoom}
-          />
-        </View>
+        {backBar}
         <StateView
           status="empty"
-          title="그날은 아무도 곡을 올리지 않았어요"
-          message={`${formattedDate}의 플레이리스트가 비어 있어요.`}
-          actionLabel="팀으로 돌아가기"
-          onAction={goBackToRoom}
+          title={selectedIsToday ? '오늘은 아직 곡이 없어요' : '그날은 아무도 곡을 올리지 않았어요'}
+          message={`${formatDate(dateKey)}의 플레이리스트가 비어 있어요.`}
+          actionLabel={selectedIsToday ? '곡 추가하기' : '팀으로 돌아가기'}
+          onAction={() => {
+            if (selectedIsToday) {
+              router.push(`/room/${id}/track/new`);
+              return;
+            }
+            router.back();
+          }}
         />
       </BleedScreen>
     );
@@ -191,81 +193,72 @@ export default function PlaylistDetail() {
                   name="chevronLeft"
                   accessibilityLabel="뒤로 가기"
                   variant="circle"
-                  onPress={goBackToRoom}
+                  onPress={() => router.back()}
                 />
                 <View style={styles.topBarRight}>
                   <IconButton
                     name="users"
-                    accessibilityLabel="팀원 보기"
+                    accessibilityLabel="팀원·초대 코드"
                     variant="circle"
-                    onPress={() => {
-                      // TODO(M3): /room/{id}/members 모달
-                    }}
-                  />
-                  <IconButton
-                    name="share"
-                    accessibilityLabel="초대 코드 공유하기"
-                    variant="circle"
-                    onPress={() => {
-                      // TODO(M3): 초대 코드 공유 시트
-                    }}
+                    onPress={() => router.push(`/room/${id}/members`)}
                   />
                 </View>
               </View>
               <LinearGradient colors={colors.heroFade} style={styles.heroGradient}>
-                <Text style={typography.heroTitle}>{missionFor(selectedDateKey, day)}</Text>
-                <Text style={typography.caption}>{formattedDate}의 플레이리스트</Text>
+                {/* TODO(M4): 과거(dateKey !== todayKey())는 days.themeText 스냅샷을 써야 한다.
+                    themeFor는 오늘 테마 계산용 — THEMES 풀이 바뀌면 과거 테마가 소급 변조된다 (구현계획서 §2) */}
+                <Text style={typography.heroTitle}>{missionFor(dateKey, days.find(d => d.dateKey === dateKey))}</Text>
+                <Text style={typography.caption}>{formatDate(dateKey)}의 플레이리스트</Text>
               </LinearGradient>
             </View>
 
-            {/* 참여자 */}
+            {/* 참여자 — 실멤버 (아바타는 최대 4명 노출, 인원수는 전체) */}
             <View
               style={styles.membersRow}
               accessible
-              accessibilityLabel={`${participants.length}명이 곡을 올렸어요`}
+              accessibilityLabel={`${members.length}명이 함께 듣고 있어요`}
             >
               <View style={styles.avatars}>
-                {participants.map((track) => (
-                  <Avatar key={track.uid} nickname={track.nickname} size={size.avatarMd} overlap />
+                {members.slice(0, 4).map((m) => (
+                  <Avatar key={m.uid} nickname={m.nickname} color={m.photoColor} size={size.avatarMd} overlap />
                 ))}
               </View>
               <Text style={[typography.caption, styles.membersText]}>
-                {participants.length}명이 곡을 올렸어요
+                {members.length}명이 함께 듣고 있어요
               </Text>
             </View>
 
-            {/* 메인: 유튜브 핸드오프 / 보조: 인앱 미리듣기 */}
+            {/* 메인: 유튜브 핸드오프 / 보조: 인앱 미리듣기.
+                킬스위치(first_video)면 둘의 주·보조가 뒤바뀐다 — 미리듣기가 메인으로 승격. */}
             <View style={styles.playRow}>
               <PressableScale
-                style={styles.playBtn}
+                style={[styles.cta, previewPrimary ? styles.ctaSecondary : styles.ctaPrimary]}
                 onPress={playOnYoutube}
                 accessibilityRole="button"
-                accessibilityLabel={`유튜브에서 전체 재생, ${tracks.length}곡`}
+                accessibilityLabel={
+                  previewPrimary ? '유튜브에서 첫 곡 재생' : `유튜브에서 전체 재생, ${tracks.length}곡`
+                }
               >
-                <Icon name="play" size={size.icon} color={colors.bg} />
-                <Text style={[typography.bodyMedium, styles.playBtnText]}>유튜브에서 재생</Text>
+                <Icon name="play" size={size.icon} color={previewPrimary ? colors.text : colors.bg} />
+                <Text style={[typography.bodyMedium, !previewPrimary && styles.onPrimary]}>
+                  {previewPrimary ? '유튜브에서 첫 곡' : '유튜브에서 재생'}
+                </Text>
               </PressableScale>
               <PressableScale
-                style={styles.previewBtn}
-                onPress={() => {
-                  if (playable.length === 0) {
-                    toast('미리듣기할 수 있는 곡이 없어요');
-                    return;
-                  }
-                  setQueueIndex(0);
-                  setPlaying(true);
-                }}
+                style={[styles.cta, previewPrimary ? styles.ctaPrimary : styles.ctaSecondary]}
+                onPress={startPreview}
                 accessibilityRole="button"
                 accessibilityLabel="앱에서 미리듣기"
               >
-                <Text style={typography.bodyMedium}>미리듣기</Text>
+                <Text style={[typography.bodyMedium, previewPrimary && styles.onPrimary]}>미리듣기</Text>
               </PressableScale>
             </View>
 
             {/* 유튜브가 TLGG 임시 재생목록에 [저장] 버튼을 제공한다 — 기능처럼 안내 */}
             <Text style={[typography.tab, styles.saveHint]}>
-              유튜브에서 저장 버튼을 누르면 내 계정에 보관돼요
+              연속 재생이 안 되면 각 곡의 재생 버튼으로 열어보세요
             </Text>
+
 
             {/* 미리듣기 플레이어 (기기별 독립) */}
             {playing && !!current && (
@@ -285,7 +278,7 @@ export default function PlaylistDetail() {
                   }}
                 />
                 <Text style={typography.caption}>
-                  {current.nickname}님의 추천{current.comment ? ` · “${current.comment}”` : ''}
+                  {who(current.uid, current.nickname)}님의 추천{current.comment ? ` · “${current.comment}”` : ''}
                 </Text>
               </View>
             )}
@@ -297,7 +290,7 @@ export default function PlaylistDetail() {
           const isPlayable = playableIndex !== -1;
           const active = isPlayable && playing && playableIndex === queueIndex;
           return (
-            <PressableScale
+            <View><PressableScale
               style={[styles.trackRow, active && styles.trackActive]}
               onPress={() => {
                 // 재생 불가(유튜브 전용) 곡은 미리듣기 큐를 흔들지 않도록 탭을 막는다
@@ -310,12 +303,12 @@ export default function PlaylistDetail() {
               }}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`${index + 1}번째 곡, ${item.title}, ${item.artist}, ${item.nickname}님 추천${isPlayable ? '' : ', 유튜브 전용'}`}
+              accessibilityLabel={`${index + 1}번째 곡, ${item.title}, ${item.artist}, ${who(item.uid, item.nickname)}님 추천${isPlayable ? '' : ', 유튜브 전용'}`}
             >
               <View>
                 <YoutubeArt videoId={item.videoId} style={styles.thumb} small />
                 <View style={styles.miniAvatar}>
-                  <Avatar nickname={item.nickname} size={size.avatarSm} overlap />
+                  <Avatar nickname={who(item.uid, item.nickname)} size={size.avatarSm} overlap />
                 </View>
               </View>
               <View style={styles.trackText}>
@@ -327,7 +320,7 @@ export default function PlaylistDetail() {
                 </Text>
               </View>
               {!isPlayable && <Text style={[typography.tab, styles.ytOnly]}>유튜브 전용</Text>}
-            </PressableScale>
+            </PressableScale><TrackActions roomId={id} track={item} /></View>
           );
         }}
       />
@@ -367,33 +360,39 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.xxl,
   },
-  playBtn: {
+  cta: {
     flex: 1,
     flexDirection: 'row',
     gap: spacing.xs,
     minHeight: size.ctaLg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.text,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playBtnText: { color: colors.bg },
-  previewBtn: {
-    flex: 1,
-    minHeight: size.ctaLg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.white10,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  ctaPrimary: { backgroundColor: colors.text },
+  ctaSecondary: { backgroundColor: colors.white10 },
+  onPrimary: { color: colors.bg },
   saveHint: {
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.md,
     textAlign: 'center',
   },
+  sharedRow: {
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.xl,
+  },
+  sharedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    minHeight: size.touch,
+    borderRadius: radius.full,
+    backgroundColor: colors.white10,
+  },
+  disabled: { opacity: opacity.disabled },
   player: {
     paddingHorizontal: spacing.xxl,
     gap: spacing.sm,

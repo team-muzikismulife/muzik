@@ -11,14 +11,15 @@ export const ICONS = {
   chevronDown: 'chevron-down',
   plus: 'plus',
   more: 'more-horizontal', // ri:more-line — 코멘트 박스의 ⋯
+  moreVertical: 'more-vertical',
+  download: 'download',
   bell: 'bell',
   users: 'users',
   share: 'share',
   play: 'play',
-  list: 'list',
   music: 'music',
-  download: 'download',
-  moreVertical: 'more-vertical',
+  close: 'x',
+  clipboard: 'clipboard',
 } as const;
 
 export type IconName = keyof typeof ICONS;

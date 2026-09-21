@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, hitSlop, radius, size, spacing, typography } from '@/theme/tokens';
@@ -10,39 +10,21 @@ import { Icon, IconButton } from '@/components/Icon';
 import { DateTabs } from '@/components/DateTabs';
 import { MissionBanner } from '@/components/MissionBanner';
 import { TrackCard, AddTrackCard } from '@/components/TrackCard';
-import { todayKey } from '@/lib/date';
+import { TrackActions } from '@/components/TrackActions';
+import { trackKey, useHiddenTracks } from '@/store/hiddenTracks';
 import { useDateKey } from '@/hooks/useDateKey';
 import { missionFor } from '@/lib/themes';
-import { toast } from '@/store/ui';
-import { useRoomStore } from '@/store/room';
 import { useSessionStore } from '@/store/session';
-import type { Day, Member, Track } from '@/types/models';
+import { useRoomStore } from '@/store/room';
+import { isMockPreviewEnabled } from '@/lib/mockPreview';
+import type { Member, Track } from '@/types/models';
 
 /**
- * 메인 홈 (Figma 1:1732 "Main")
- * 헤더(팀 이름 + chevron + 알림) → 미션 스트립 → 날짜 탭 → 팀원별 곡 카드
+ * 메인 홈 (Figma 157:744) — 실데이터 구독 (M2)
+ * 헤더([<] 팀 목록 + 팀 이름 / 알림) → 날짜 탭 → 추천 카드 → 팀원별 곡 카드
  *
- * 카드는 **팀원 수만큼** 나열한다 (스펙 §2-C). 미등록 팀원도 자리를 차지하므로
- * "누가 아직 안 올렸는지"가 한눈에 보인다 — 이게 재촉 장치다.
- *
- * Firestore 구독은 src/store/room.ts가 관리한다. 화면은 라우트/세션 상태와 UI 조립만 담당한다.
+ * 카드는 팀원 수만큼 나열한다 — 미등록 팀원도 자리를 차지해 "누가 안 올렸는지"가 보인다.
  */
-
-const DAY_MS = 86_400_000;
-const TAB_COUNT = 7;
-
-/**
- * 날짜 탭 — 라벨과 이동 대상 dateKey가 반드시 일치해야 한다.
- * TODO(M4): days 컬렉션 구독으로 교체 — 실제 곡이 있는 날짜만 뜬다.
- */
-function recentDateKeys(): string[] {
-  const now = Date.now();
-  return Array.from({ length: TAB_COUNT }, (_, i) =>
-    todayKey(new Date(now - (TAB_COUNT - 1 - i) * DAY_MS)),
-  );
-}
-
-/** 팀원 한 명의 오늘 현황 — 곡을 올렸거나(track), 아직 안 올렸거나(null) */
 interface Row {
   member: Member;
   track: Track | null;
@@ -55,40 +37,56 @@ const LIST_CONTENT = {
 };
 
 export default function RoomHome() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, date } = useLocalSearchParams<{ id: string; date?: string }>();
   const router = useRouter();
-  const [retryKey, setRetryKey] = useState(0);
-
-  // 새벽 4시를 넘기면 스스로 바뀐다 — 앱을 켜둔 채 마감을 넘겨도 어제에 머물지 않는다.
-  const today = useDateKey();
-  const roomId = typeof id === 'string' ? id : '';
-  const dateKeys = recentDateKeys();
+  const hidden = useHiddenTracks(s => s.keys);
   const myUid = useSessionStore((s) => s.uid);
-  const status = useRoomStore((s) => s.status);
-  const error = useRoomStore((s) => s.error);
+
   const room = useRoomStore((s) => s.room);
   const members = useRoomStore((s) => s.members);
-  const tracks = useRoomStore((s) => s.todayTracks);
-  const todayDay: Day | null = useRoomStore((s) => s.todayDay);
-  const subscribeRoom = useRoomStore((s) => s.subscribe);
+  const tracks = useRoomStore((s) => s.tracks);
+  const days = useRoomStore((s) => s.days);
+  const status = useRoomStore((s) => s.status);
+  const fromCache = useRoomStore(s => s.fromCache);
+  const error = useRoomStore((s) => s.error);
+  const subscribe = useRoomStore((s) => s.subscribe);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!roomId) return undefined;
-      return subscribeRoom(roomId, today);
-    }, [roomId, today, retryKey, subscribeRoom]),
-  );
+  const today = useDateKey();
+  const [selectedDate, setSelectedDate] = useState(date ?? today);
+  const previousToday = useRef(today);
 
-  // 팀원 순서대로 한 줄씩 — 곡이 없으면 빈 카드
+  useEffect(() => {
+    setSelectedDate(date ?? today);
+  }, [id, date]);
+  useEffect(() => {
+    if (previousToday.current !== today) { previousToday.current = today; setSelectedDate(today); }
+  }, [today]);
+
+  // 날짜 탭 = 곡이 있는 날짜(days) + 오늘 + 현재 선택 날짜, 오름차순
+  const dateKeys = useMemo(() => {
+    const set = new Set(days.map((d) => d.dateKey));
+    set.add(today);
+    set.add(selectedDate);
+    return [...set].sort();
+  }, [days, selectedDate, today]);
+
+  // 포커스 중에만 구독 — 이탈 시 unsubscribe (Firestore 읽기 비용 직결)
+  useFocusEffect(useCallback(() => subscribe(id, selectedDate), [id, selectedDate, subscribe]));
+
+  // 팀원 순서대로 한 줄씩 — 곡이 없으면 빈 카드 (렌더 중 계산, 파생 상태 금지)
   const rows: Row[] = members.map((member) => ({
     member,
     track: tracks.find((t) => t.uid === member.uid) ?? null,
   }));
-  const doneToday = !!myUid && tracks.some((t) => t.uid === myUid);
+  const selectedDay = days.find((d) => d.dateKey === selectedDate);
+  const selectedMission = missionFor(selectedDate, selectedDay);
+  const selectedIsToday = selectedDate === today;
+  const doneToday = selectedIsToday && tracks.some((t) => t.uid === myUid);
+  const teamName = room?.name ?? '';
 
-  const openAddTrack = () => {
-    toast('곡 등록은 다음 단계에서 연결할게요');
-  };
+  const openAddTrack = () => router.push(`/room/${id}/track/new`);
+  const openPlaylist = () => router.push(`/room/${id}/playlist/${selectedDate}`);
+  const openSharedPlaylist = () => router.push(`/room/${id}/shared-playlist`);
 
   if (status === 'error') {
     return (
@@ -98,21 +96,7 @@ export default function RoomHome() {
           title="팀을 불러오지 못했어요"
           message={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'}
           actionLabel="다시 시도"
-          onAction={() => setRetryKey((key) => key + 1)}
-        />
-      </Screen>
-    );
-  }
-
-  if (status === 'empty' || !roomId) {
-    return (
-      <Screen>
-        <StateView
-          status="empty"
-          title="팀을 찾을 수 없어요"
-          message="팀 목록에서 다시 선택해 주세요."
-          actionLabel="팀 목록으로"
-          onAction={() => router.replace('/')}
+          onAction={() => subscribe(id, selectedDate)}
         />
       </Screen>
     );
@@ -120,13 +104,8 @@ export default function RoomHome() {
 
   return (
     <Screen edges={['top']}>
-      {/* 헤더 — [<] 팀 목록으로 + 팀 이름 / 알림 */}
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          {/*
-           * 팀 목록(온보딩)으로 돌아간다 = 팀 전환 (온보딩구현계획.md 결정 5).
-           * 딥링크로 이 화면에 바로 진입하면 뒤로 갈 스택이 없다 → 그땐 온보딩으로 교체 이동.
-           */}
           <PressableScale
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
             hitSlop={hitSlop.md}
@@ -136,89 +115,89 @@ export default function RoomHome() {
             <Icon name="chevronLeft" size={size.iconLg} color={colors.text} />
           </PressableScale>
           <Text style={typography.title} numberOfLines={1}>
-            {room?.name ?? '팀'}
+            {teamName}
           </Text>
         </View>
 
         <View style={styles.headerActions}>
+          {/* 팀원·초대 코드 — 생성 이후에도 코드를 다시 보고 공유 */}
           <IconButton
-            name="music"
+            name="users"
             size={size.iconLg}
-            accessibilityLabel="공동 플리 열기"
-            onPress={() => router.push(`/room/${roomId}/shared-playlist`)}
+            accessibilityLabel="팀원·초대 코드"
+            onPress={() => router.push(`/room/${id}/members`)}
           />
-          {/* 알림 벨: 곡 등록·코멘트 반응 알림용 (스펙 §2-A). 코멘트 기능 도입 후 활성화 */}
-          <View style={styles.bell}>
-            <IconButton name="bell" size={size.iconLg} accessibilityLabel="알림 (준비 중)" disabled />
-            <View style={styles.dot} />
-          </View>
+          {/* 알림 벨: 곡별 코멘트 기능 도입 후 활성화 (현재 비활성) */}
         </View>
       </View>
 
-      {/* 오늘의 미션 — 스트립 전체가 곡 등록 진입점 */}
-      <MissionBanner mission={missionFor(today, todayDay)} done={doneToday} onPress={openAddTrack} />
-
       <DateTabs
         dateKeys={dateKeys}
-        selected={today}
-        onSelect={(dk) => router.push(`/room/${roomId}/playlist/${dk}`)}
+        selected={selectedDate}
+        onSelect={setSelectedDate}
+      />
+      <Text style={[typography.caption, styles.connection]}>{isMockPreviewEnabled() ? '발표용 시연 · 데이터는 저장되지 않아요' : fromCache ? '저장된 화면 · 서버 연결 확인 중' : '서버에서 최신 곡을 받았어요'}</Text>
+
+      <MissionBanner
+        mission={selectedMission}
+        done={doneToday}
+        onPress={openPlaylist}
+        actionLabel="해당 날짜 플레이리스트 열기"
       />
 
-      <FlatList
-        data={status === 'loading' ? [] : rows}
-        keyExtractor={(r) => r.member.uid}
-        contentContainerStyle={LIST_CONTENT}
-        ListEmptyComponent={
-          status === 'loading' ? (
-            <SkeletonTrackCard />
-          ) : (
-            <StateView
-              status="empty"
-              title="아직 팀원이 없어요"
-              message="초대 코드를 공유해 팀원을 초대해 보세요."
-            />
-          )
-        }
-        renderItem={({ item }) => {
-          const isMine = item.member.uid === myUid;
-          if (item.track) {
+      <View style={styles.trackListViewport}>
+        <FlatList
+          key={selectedDate}
+          style={styles.trackList}
+          data={status === 'loading' ? [] : rows}
+          keyExtractor={(r) => r.member.uid}
+          contentContainerStyle={LIST_CONTENT}
+          ListEmptyComponent={
+            status === 'loading' ? (
+              <SkeletonTrackCard />
+            ) : (
+              <StateView
+                status="empty"
+                title="아직 팀원이 없어요"
+                message="초대 코드를 공유해 팀원을 초대해 보세요."
+              />
+            )
+          }
+          renderItem={({ item }) => {
+            const isMineToday = selectedIsToday && item.member.uid === myUid;
+            if (item.track) {
+              if (item.track.hidden || hidden.includes(trackKey(id, item.track))) return <Text style={typography.caption}>{item.member.nickname}님의 곡은 숨겨졌어요</Text>;
+              return <View><TrackCard track={item.track} nickname={item.member.nickname} isMine={isMineToday} onMore={openAddTrack} /><TrackActions roomId={id} track={item.track} /></View>;
+            }
             return (
-              <TrackCard
-                track={item.track}
-                isMine={isMine}
-                onMore={() => {
-                  // TODO(M4): /room/{id}/track/{trackId} 모달 (수정/삭제)
-                }}
+              <AddTrackCard
+                nickname={item.member.nickname}
+                onPress={isMineToday ? openAddTrack : undefined}
               />
             );
-          }
-          return (
-            <AddTrackCard
-              nickname={item.member.nickname}
-              // 남의 빈 카드는 자리만 차지한다 — 대신 올려줄 수는 없다
-              onPress={isMine ? openAddTrack : undefined}
-            />
-          );
-        }}
-      />
+          }}
+        />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  connection: { paddingHorizontal: spacing.xxl, paddingBottom: spacing.sm },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.xxl,
-    // Figma 157:744 — 헤더 높이 68 = 20 + 28 + 20
     paddingVertical: spacing.xl,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
   titleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  trackListViewport: { flex: 1, overflow: 'hidden' },
+  trackList: { flex: 1 },
   bell: { position: 'relative' },
   dot: {
     position: 'absolute',

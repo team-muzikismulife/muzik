@@ -13,7 +13,7 @@ import { colors, opacity, radius, size, spacing, typography } from '@/theme/toke
 import { Screen } from '@/components/Screen';
 import { StateView } from '@/components/StateView';
 import { PressableScale } from '@/components/PressableScale';
-import { fieldError, InviteCodeSchema, JoinRoomInput, NicknameSchema } from '@/schemas';
+import { fieldError, InviteCodeSchema, NicknameSchema } from '@/schemas';
 import { joinRoom } from '@/lib/api';
 import { isOffline, toMessage } from '@/lib/errors';
 import { useSessionStore } from '@/store/session';
@@ -52,9 +52,8 @@ export default function InviteEntry() {
     setJoining(true);
     setError(null);
     try {
-      const input = JoinRoomInput.parse({ code: normalized, nickname });
-      const { roomId } = await joinRoom(input);
-      setLastNickname(input.nickname);
+      const { roomId } = await joinRoom({ code: normalized, nickname });
+      setLastNickname(nickname);
       // 초대 화면은 히스토리에 남기지 않는다 — 뒤로 가면 다시 입장 폼이 뜨는 게 어색하다
       router.replace(`/room/${roomId}`);
     } catch (e: unknown) {
@@ -77,8 +76,8 @@ export default function InviteEntry() {
           status="error"
           title="입장할 수 없어요"
           message={blockingError}
-          actionLabel={canRetry ? '다시 시도' : '홈으로'}
-          onAction={canRetry ? () => setError(null) : () => router.replace('/')}
+          actionLabel={canRetry ? '다시 시도' : '코드 다시 입력'}
+          onAction={canRetry ? () => setError(null) : () => router.replace({ pathname: '/room/join', params: { code: normalized } })}
         />
       </Screen>
     );
@@ -96,6 +95,8 @@ export default function InviteEntry() {
             <Text style={[typography.caption, styles.help]}>
               이 팀에서 쓸 닉네임을 정해 주세요.
             </Text>
+            <Text style={typography.caption}>초대 코드 {normalized}</Text>
+            <Text style={typography.caption}>같은 브라우저에서 계정이 유지돼요. 다른 기기나 브라우저에서는 새 계정으로 참여해요.</Text>
           </View>
 
           <View>

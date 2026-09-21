@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Linking, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { aspect, colors, radius, size, spacing, typography } from '@/theme/tokens';
 import { BleedScreen } from '@/components/Screen';
@@ -103,7 +103,12 @@ function SharedTrackRow({
   );
 }
 
-export default function SharedPlaylist() {
+export default function SharedPlaylistGate() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return <Redirect href={`/room/${id}`} />;
+}
+
+function SharedPlaylist() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();

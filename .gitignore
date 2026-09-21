@@ -101,3 +101,6 @@ expo-env.d.ts
 functions/lib/
 functions/node_modules/
 functions/.secret.local
+
+# Vercel (로컬 프로젝트 링크 — 커밋 금지)
+.vercel

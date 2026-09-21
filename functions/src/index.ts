@@ -9,7 +9,9 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 initializeApp();
 
 // 클라이언트도 같은 리전으로 호출해야 한다 (src/lib/firebase.ts FUNCTIONS_REGION)
-setGlobalOptions({ region: 'asia-northeast3' });
+setGlobalOptions({ region: 'asia-northeast3', maxInstances: 2, minInstances: 0, concurrency: 20, timeoutSeconds: 60, memory: '256MiB' });
 
 export { createRoom } from './createRoom';
 export { joinRoom } from './joinRoom';
+export { registerTrack, updateTrack, deleteTrack, previewTrack, refreshMeta } from './tracks';
+export { reportTrack, submitFeedback, recordVisit, reviewQueue, moderateTrack } from './moderation';

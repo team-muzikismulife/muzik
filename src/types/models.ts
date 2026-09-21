@@ -33,7 +33,7 @@ export interface Track {
   comment: string; // ≤ 30자
   uid: string;
   nickname: string;
-  dateKey: string; // 'YYYY-MM-DD' (KST, 새벽 4시 컷)
+  dateKey: string; // 'YYYY-MM-DD' (KST, 자정 컷)
   order: number; // 서버 epoch — 재생 순서
   createdAt: number;
   /** videos.list 검증 결과 — false면 인앱 미리듣기에서 스킵하고 "유튜브 전용" 배지 */
@@ -42,6 +42,7 @@ export interface Track {
   metaRefreshedAt: number;
   /** oEmbed 404(삭제된 영상) — "재생 불가" 표시 + 핸드오프 URL에서 제외 */
   unavailable?: boolean;
+  hidden?: boolean;
 }
 
 /**
@@ -56,4 +57,30 @@ export interface Day {
   /** 그날 첫 곡이 올라온 순간의 미션 스냅샷. 이후 덮어쓰지 않는다 (구현계획서 §2) */
   themeText: string;
   updatedAt: number;
+}
+
+/**
+ * 공동 공유 플리 — 방 안에서 같이 담아두는 영구 재생목록 폴더.
+ * 현재 데모는 기본 폴더(`favorites`) 1개부터 지원한다.
+ */
+export interface SharedPlaylist {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  trackCount: number;
+  coverVideoId?: string;
+}
+
+export interface SharedPlaylistItem {
+  videoId: string;
+  title: string;
+  artist: string;
+  sourceDateKey: string;
+  recommendedByUid: string;
+  recommendedByNickname: string;
+  addedByUid: string;
+  addedAt: number;
+  order: number;
 }

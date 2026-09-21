@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Share,
   Text,
   TextInput,
   View,
@@ -11,13 +10,14 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { colors, opacity, radius, size, spacing, typography } from '@/theme/tokens';
+import { colors, radius, size, spacing, typography } from '@/theme/tokens';
 import { Screen } from '@/components/Screen';
 import { PressableScale } from '@/components/PressableScale';
-import { IconButton } from '@/components/Icon';
+import { Icon, IconButton } from '@/components/Icon';
 import { createRoom } from '@/lib/api';
+import { shareInvite } from '@/lib/invite';
 import { toMessage } from '@/lib/errors';
-import { CreateRoomInput, fieldError, NicknameSchema, RoomNameSchema } from '@/schemas';
+import { fieldError, NicknameSchema, RoomNameSchema } from '@/schemas';
 import { useSessionStore } from '@/store/session';
 import { toast } from '@/store/ui';
 
@@ -41,24 +41,21 @@ export default function CreateRoom() {
   const [nicknameInput, setNicknameInput] = useState<string | null>(null);
   const nickname = nicknameInput ?? lastNickname ?? '';
   const [submitting, setSubmitting] = useState(false);
-  const [created, setCreated] = useState<{
-    roomId: string;
-    inviteCode: string;
-    roomName: string;
-  } | null>(null);
+  const [created, setCreated] = useState<{ roomId: string; inviteCode: string } | null>(null);
 
   const nameError = fieldError(RoomNameSchema, name);
   const nicknameError = fieldError(NicknameSchema, nickname);
   const canSubmit = !nameError && !nicknameError && !submitting;
+  const showNameError = name.trim().length > 0 && !!nameError;
+  const showNicknameError = nickname.trim().length > 0 && !!nicknameError;
 
   const submit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const input = CreateRoomInput.parse({ name, nickname });
-      const result = await createRoom(input);
-      setLastNickname(input.nickname); // 다음 개설·입장 폼의 기본값
-      setCreated({ ...result, roomName: input.name });
+      const result = await createRoom({ name, nickname });
+      setLastNickname(nickname); // 다음 개설·입장 폼의 기본값
+      setCreated(result);
     } catch (e: unknown) {
       toast(toMessage(e, 'createRoom'));
     } finally {
@@ -102,20 +99,21 @@ export default function CreateRoom() {
               accessibilityRole="button"
               accessibilityLabel="초대 코드 복사"
             >
+              <Icon name="clipboard" size={size.icon} color={colors.text} />
               <Text style={typography.bodyMedium}>복사</Text>
             </PressableScale>
 
             <PressableScale
               style={[styles.btn, styles.btnGhost]}
-              onPress={() =>
-                // 딥링크와 6자 코드를 반드시 병기한다 — muzik://는 Expo Go에서 안 열린다 (백엔드설계.md §7)
-                Share.share({
-                  message: `[MUZIK] 팀 "${created.roomName}"에 초대합니다.\n초대 코드: ${created.inviteCode}\nmuzik://r/${created.inviteCode}`,
-                })
-              }
+              onPress={async () => {
+                // 코드 + (웹에서 열리는) https 초대 링크를 함께 보낸다 — src/lib/invite.ts
+                const result = await shareInvite(name, created.inviteCode);
+                if (result === 'copied') toast('초대 내용을 복사했어요');
+              }}
               accessibilityRole="button"
-              accessibilityLabel="초대 코드 공유"
+              accessibilityLabel="초대 공유"
             >
+              <Icon name="share" size={size.icon} color={colors.text} />
               <Text style={typography.bodyMedium}>공유</Text>
             </PressableScale>
           </View>
@@ -126,7 +124,7 @@ export default function CreateRoom() {
             accessibilityRole="button"
             accessibilityLabel="팀으로 이동"
           >
-            <Text style={typography.bodyMedium}>팀으로 이동</Text>
+            <Text style={[typography.bodyMedium, styles.onPrimary]}>팀으로 이동</Text>
           </PressableScale>
         </View>
       </Screen>
@@ -157,11 +155,15 @@ export default function CreateRoom() {
               onChangeText={setName}
               placeholder="예: 무직은 내 삶"
               placeholderTextColor={colors.text40}
-              style={styles.input}
+              style={[styles.input, showNameError && styles.inputError]}
               maxLength={20}
               returnKeyType="next"
               accessibilityLabel="팀 이름 입력"
+              accessibilityHint={showNameError ? nameError : undefined}
             />
+            <Text style={[typography.tab, showNameError ? styles.errorText : styles.metaText]}>
+              {showNameError ? nameError : `${name.length}/20`}
+            </Text>
           </View>
 
           <View>
@@ -172,12 +174,16 @@ export default function CreateRoom() {
               onChangeText={setNicknameInput}
               placeholder="닉네임"
               placeholderTextColor={colors.text40}
-              style={styles.input}
+              style={[styles.input, showNicknameError && styles.inputError]}
               maxLength={8}
               returnKeyType="done"
               onSubmitEditing={submit}
               accessibilityLabel="닉네임 입력"
+              accessibilityHint={showNicknameError ? nicknameError : undefined}
             />
+            <Text style={[typography.tab, showNicknameError ? styles.errorText : styles.metaText]}>
+              {showNicknameError ? nicknameError : `${nickname.length}/8`}
+            </Text>
           </View>
 
           <PressableScale
@@ -188,9 +194,9 @@ export default function CreateRoom() {
             accessibilityLabel="팀 개설하기"
           >
             {submitting ? (
-              <ActivityIndicator color={colors.text} />
+              <ActivityIndicator color={colors.bg} />
             ) : (
-              <Text style={typography.bodyMedium}>팀 개설하기</Text>
+              <Text style={[typography.bodyMedium, canSubmit && styles.onPrimary]}>팀 개설하기</Text>
             )}
           </PressableScale>
         </View>
@@ -218,6 +224,8 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.white5,
     borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.white10,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     minHeight: size.touch,
@@ -225,6 +233,9 @@ const styles = StyleSheet.create({
     fontFamily: typography.body.fontFamily,
     fontSize: typography.body.fontSize,
   },
+  inputError: { borderColor: colors.danger },
+  metaText: { color: colors.text40, marginTop: spacing.xs, textAlign: 'right' },
+  errorText: { color: colors.danger, marginTop: spacing.xs },
   codeBox: {
     alignItems: 'center',
     paddingVertical: spacing.xxl,
@@ -241,6 +252,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.md },
   btn: {
     flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
     minHeight: size.touch,
     alignItems: 'center',
     justifyContent: 'center',
@@ -249,9 +262,8 @@ const styles = StyleSheet.create({
   },
   btnGhost: { backgroundColor: colors.white10 },
   btnPrimary: {
-    backgroundColor: colors.white10,
-    borderWidth: 1,
-    borderColor: colors.white60,
+    backgroundColor: colors.text,
   },
-  btnDisabled: { opacity: opacity.disabled },
+  onPrimary: { color: colors.bg },
+  btnDisabled: { backgroundColor: colors.white10 },
 });

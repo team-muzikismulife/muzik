@@ -31,10 +31,10 @@ export const colors = {
   danger: '#FB2C36',
   skeleton: 'rgba(255,255,255,0.07)',
   toastBg: '#2A2A2A',
-  /** 미션 배너 그라데이션 — Figma: 알파 0.6 (구버전 0.2보다 훨씬 진하다) */
-  missionFrom: 'rgba(152,16,250,0.6)',
-  missionTo: 'rgba(230,0,118,0.6)',
-  missionBorder: 'rgba(173,70,255,0.3)',
+  /** 미션 배너 그라데이션 — 검정 배경에서 죽지 않도록 불투명 고명도 색으로 고정 */
+  missionFrom: '#B84DFF',
+  missionTo: '#FF2E92',
+  missionBorder: 'rgba(255,255,255,0.22)',
   /** 히어로 하단 그라데이션 (투명 → bg) */
   heroFade: ['rgba(0,0,0,0)', 'rgba(18,18,18,0.8)', '#121212'],
   /** 아바타 배경 — 닉네임 해시로 결정론적 선택. 서버(members.photoColor)와 같은 인덱스 규칙 */
@@ -112,7 +112,13 @@ export const size = {
   notifDot: 8,
   player: 200,
   skeletonLine: 12,
-  missionStrip: 40, // 미션 스트립 (py8 + 텍스트 20 + 여유)
+  missionStrip: 56, // 미션 추천 카드 최소 높이
+  /**
+   * 앱 최대 폭 — **웹 전용**. 데스크톱 브라우저에서 앱이 뷰포트 전체로 늘어나면
+   * 모바일 기준 비율(히어로·카드 aspect)이 깨진다. 이 폭으로 가운데 컬럼을 만들어
+   * 실기기와 같은 비율을 유지한다. 네이티브에선 적용하지 않는다(전체 폭).
+   */
+  appMaxWidth: 430, // 대형 폰 폭 기준 (iPhone Pro Max 430)
 } as const;
 
 /** 비율 — 기기 폭에 따라 늘어나야 하는 요소 */

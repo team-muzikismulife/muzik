@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchMyTeams, type TeamSummary } from '@/lib/db';
 import { toMessage } from '@/lib/errors';
+import { getMockTeamSummary, isMockPreviewEnabled, MOCK_ROOM_ID } from '@/lib/mockData';
 
 /**
  * 참여 중인 팀 목록 (온보딩)
@@ -25,12 +26,23 @@ export const useTeamsStore = create<TeamsStore>((set) => ({
   error: null,
 
   load: async (uid) => {
+    if (isMockPreviewEnabled()) {
+      set({ teams: [getMockTeamSummary(uid)], status: 'ready', error: null });
+      return;
+    }
     // 재조회 시 목록을 비우지 않는다 — 화면이 깜빡이며 빈 상태로 튀는 것을 막는다
     set({ status: 'loading', error: null });
     try {
       const teams = await fetchMyTeams(uid);
-      set({ teams, status: 'ready' });
+      const previewTeams = isMockPreviewEnabled()
+        ? [getMockTeamSummary(uid), ...teams.filter((team) => team.id !== MOCK_ROOM_ID)]
+        : teams;
+      set({ teams: previewTeams, status: 'ready' });
     } catch (e: unknown) {
+      if (isMockPreviewEnabled()) {
+        set({ teams: [getMockTeamSummary(uid)], status: 'ready', error: null });
+        return;
+      }
       set({ status: 'error', error: toMessage(e) });
     }
   },

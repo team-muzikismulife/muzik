@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { create } from 'zustand';
 import { auth } from '@/lib/firebase';
 import { toMessage } from '@/lib/errors';
+import { isMockPreviewEnabled } from '@/lib/mockPreview';
 
 /**
  * 세션 — 익명 로그인으로 얻은 uid와, 마지막에 쓴 닉네임 (docs/온보딩구현계획.md §1)
@@ -15,6 +16,7 @@ import { toMessage } from '@/lib/errors';
  */
 
 const NICKNAME_KEY = 'muzik.lastNickname';
+const MOCK_UID = 'mock-you';
 
 type SessionStatus = 'loading' | 'ready' | 'error';
 
@@ -51,6 +53,11 @@ export const useSessionStore = create<SessionStore>((set) => ({
         // 닉네임 복원 실패는 치명적이지 않다 — 인사말만 빠지고 앱은 돈다
       });
 
+    if (isMockPreviewEnabled()) {
+      set({ uid: MOCK_UID, status: 'ready', error: null });
+      return () => {};
+    }
+
     /**
      * 첫 콜백은 **영속된 세션 복원이 끝난 뒤** 온다. 그래서 여기서 user가 null이면
      * "복원할 세션이 없다"는 뜻이고, 그때만 새 익명 계정을 만든다.
@@ -70,6 +77,11 @@ export const useSessionStore = create<SessionStore>((set) => ({
   },
 
   retry: () => {
+    if (isMockPreviewEnabled()) {
+      set({ uid: MOCK_UID, status: 'ready', error: null });
+      return;
+    }
+
     set({ status: 'loading', error: null });
     signIn(set);
   },

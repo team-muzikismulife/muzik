@@ -37,15 +37,24 @@ export const InviteCodeSchema = z
 /** 코멘트 — 30자 이하 (구현계획서.md §2) */
 export const CommentSchema = z.string().trim().max(30, '코멘트는 30자까지예요');
 
+/**
+ * 곡명·가수 — 등록 폼에서 **사용자가 편집 가능**하다(oEmbed/iTunes 초기값을 고칠 수 있음).
+ * 편집 가능 = 신뢰할 수 없는 입력 → 길이 검증 대상. (docs/곡등록설계.md)
+ */
+export const TitleSchema = z.string().trim().min(1, '곡 제목을 입력해 주세요').max(80, '제목은 80자까지예요');
+export const ArtistSchema = z.string().trim().min(1, '가수를 입력해 주세요').max(80, '가수는 80자까지예요');
+
 /** 유튜브 videoId — 11자 */
 export const VideoIdSchema = z
   .string()
   .regex(/^[\w-]{11}$/, '유튜브 링크가 아닌 것 같아요');
 
-/** dateKey — 'YYYY-MM-DD' (KST, 새벽 4시 컷) */
+/** dateKey — 'YYYY-MM-DD' (KST, 자정 컷) */
 export const DateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 올바르지 않아요');
 
 /** Cloud Functions 입력 계약 */
+export const DocumentIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/, '잘못된 식별자예요');
+export const RequestIdSchema = z.string().regex(/^[A-Za-z0-9_-]{16,80}$/, '잘못된 요청이에요');
 export const CreateRoomInput = z.object({
   name: RoomNameSchema,
   nickname: NicknameSchema,
@@ -60,10 +69,10 @@ export const JoinRoomInput = z.object({
 });
 
 export const RegisterTrackInput = z.object({
-  roomId: z.string().min(1),
+  roomId: DocumentIdSchema,
   videoId: VideoIdSchema,
   comment: CommentSchema,
-});
+}).strict();
 
 export type CreateRoomInput = z.infer<typeof CreateRoomInput>;
 export type JoinRoomInput = z.infer<typeof JoinRoomInput>;

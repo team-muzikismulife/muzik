@@ -1,6 +1,6 @@
 # MUZIK IS MY LIFE
 
-그룹 음악 공유 iOS 앱 — 유튜브 링크로 하루 한 곡씩 올려 함께 만드는 데일리 플레이리스트.
+그룹 음악 공유 모바일 웹 베타 (iOS 후속) — 유튜브 링크로 하루 한 곡씩 올려 함께 만드는 데일리 플레이리스트.
 React Native (Expo SDK 53, expo-router) + Firebase (Anonymous Auth, Firestore, Cloud Functions).
 
 ## Instructions
@@ -24,7 +24,7 @@ React Native (Expo SDK 53, expo-router) + Firebase (Anonymous Auth, Firestore, C
 
 ## 핵심 설계 결정 (요약 — 상세는 docs/)
 
-1. **새벽 4시(KST) 마감**: `dateKey` = (현재시각 −4h)의 KST 날짜. `src/lib/date.ts`. 등록 시 dateKey는 Functions 서버 시각으로 확정.
+1. **자정(KST) 마감**: `dateKey` = KST 달력 날짜. `src/lib/date.ts`. 등록 시 dateKey는 Functions 서버 시각으로 확정. 2026-07-17 승인된 마감 변경을 유지한다.
 2. **하루 1곡**: tracks 문서 ID `{uid}_{dateKey}` + create-only.
 3. **쓰기는 전부 Cloud Functions 경유**, 클라이언트는 Firestore 읽기 전용.
 4. **재생 = 유튜브 핸드오프**: `watch_videos?video_ids=` URL로 유튜브 앱에서 연속 재생. 인앱 IFrame은 '미리듣기' 보조. 킬스위치: `config/app.handoffMode`.
@@ -47,14 +47,14 @@ assets/fonts/           # Pretendard Regular/Medium/SemiBold (Figma 전 구간�
 src/theme/tokens.ts     # Figma 디자인 토큰 (colors, typography, spacing, radius, size, aspect, shadow, hitSlop …)
 src/components/         # 도메인: Avatar, MissionBanner, TrackCard(+AddTrackCard), TeamCard, DateTabs, Thumbnail
                         # 공통: Screen, StateView, Skeleton, Icon(+IconButton), PressableScale, Toast
-src/hooks/              # React 훅. useDateKey(새벽 4시 롤오버) — lib/과 분리한 건 lib 일부가 Functions와 공유되기 때문
+src/hooks/              # React 훅. useDateKey(KST 자정 롤오버) — lib 일부가 Functions와 공유되므로 분리
 src/lib/                # date(dateKey·컷오프), youtube(파싱·oEmbed·핸드오프URL), themes, firebase, errors
                         # ⚠️ date·themes·avatar·tokens·schemas·models는 Functions도 컴파일한다 (functions/tsconfig.json).
                         #    여기에 React/RN을 import하면 서버 빌드가 깨진다.
 src/schemas/            # zod — 클라이언트/Functions 공용 검증 계약
 src/store/              # zustand — ui(토스트), session, teams. (예정) room
 src/types/models.ts     # Room, Member, Track, DailyTheme
-functions/              # Cloud Functions — createRoom, joinRoom (M1). (예정) registerTrack 외 M2~
+functions/              # Cloud Functions — 팀/곡 쓰기, 영상 검증, 신고/피드백/운영 검토. 운영 배포 전
                         # tsconfig가 ../src의 공용 모듈을 함께 컴파일한다 (rootDir='..')
 ```
 

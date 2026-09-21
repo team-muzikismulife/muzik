@@ -97,6 +97,34 @@ export interface RoomWithId extends Room {
   id: string;
 }
 
+export function subscribeRoom(roomId: string, next: (room: Room | null) => void, error: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(doc(db, 'rooms', roomId), snap => next(snap.exists() ? snap.data() as Room : null), error);
+}
+
+export function subscribeMembers(roomId: string, next: (members: Member[]) => void, error: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(query(collection(db, 'rooms', roomId, 'members'), orderBy('joinedAt', 'asc')),
+    snap => next(snap.docs.map(d => d.data() as Member)), error);
+}
+
+export function subscribeTracks(roomId: string, dateKey: string, next: (tracks: Track[]) => void,
+  error: (e: unknown) => void, connection?: (fromCache: boolean) => void): Unsubscribe {
+  return onSnapshot(tracksByDateQuery(roomId, dateKey), { includeMetadataChanges: true }, snap => {
+    connection?.(snap.metadata.fromCache);
+    next(snap.docs.map(d => d.data() as Track));
+  }, error);
+}
+
+export function subscribeDays(roomId: string, next: (days: Day[]) => void, error: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(query(collection(db, 'rooms', roomId, 'days'), orderBy('dateKey', 'desc'), limit(14)),
+    snap => next(snap.docs.map(d => d.data() as Day)), error);
+}
+
+export function subscribeConfig(next: (mode: 'watch_videos' | 'first_video') => void, error: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(doc(db, 'config', 'app'), snap => {
+    next(snap.data()?.handoffMode === 'first_video' ? 'first_video' : 'watch_videos');
+  }, error);
+}
+
 export interface RoomHomeSubscription {
   onRoom: (room: RoomWithId | null) => void;
   onMembers: (members: Member[]) => void;

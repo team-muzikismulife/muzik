@@ -5,6 +5,7 @@
 
 /** Functions callable이 던지는 코드 (백엔드설계.md §3) */
 export type AppErrorCode =
+  | 'unauthenticated'
   | 'not-found'
   | 'already-exists'
   | 'failed-precondition'
@@ -15,6 +16,7 @@ export type AppErrorCode =
   | 'unknown';
 
 const MESSAGES: Record<AppErrorCode, string> = {
+  'unauthenticated': '로그인 연결을 확인해 주세요. 같은 브라우저에서 새로고침 후 다시 시도해 주세요.',
   'not-found': '찾을 수 없어요.',
   'already-exists': '이미 등록되어 있어요.',
   'failed-precondition': '지금은 할 수 없는 작업이에요.',
@@ -32,7 +34,7 @@ const MESSAGES: Record<AppErrorCode, string> = {
 export const ERROR_CONTEXT = {
   joinRoom: {
     'not-found': '없는 초대 코드예요. 다시 확인해 주세요.',
-    'failed-precondition': '이 팀은 정원이 가득 찼어요. (최대 30명)',
+    'failed-precondition': '정원이 가득 찼어요(30명). 모임 대표에게 새 팀 코드를 요청해 주세요.',
   },
   registerTrack: {
     // already-exists는 에러가 아니라 '수정하기' 분기다 — 화면에서 분기 처리할 것
@@ -43,6 +45,10 @@ export const ERROR_CONTEXT = {
   updateTrack: {
     'failed-precondition': '지난 날짜의 곡은 수정할 수 없어요.',
     'not-found': '이미 삭제된 곡이에요.',
+  },
+  deleteTrack: {
+    'not-found': '이미 삭제된 곡이에요.',
+    'permission-denied': '내 곡만 삭제할 수 있어요.',
   },
   createRoom: {
     'resource-exhausted': '초대 코드를 만들지 못했어요. 잠시 후 다시 시도해 주세요.',
@@ -64,6 +70,7 @@ function codeOf(error: unknown): AppErrorCode {
 
 /** 에러 객체 → 화면에 띄울 한국어 문구 */
 export function toMessage(error: unknown, context?: ErrorContext): string {
+  if (error instanceof Error && 'code' in error && error.code === 'demo-only') return error.message;
   const code = codeOf(error);
   const override = context ? (ERROR_CONTEXT[context] as Partial<Record<AppErrorCode, string>>)[code] : undefined;
   return override ?? MESSAGES[code];

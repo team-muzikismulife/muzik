@@ -87,6 +87,12 @@ hero: { height: 376 }   // SE에선 화면의 56%, Pro Max에선 39% — 같은 
   - 텍스트를 담는 컨테이너는 **고정 `height` 대신 `minHeight` + `paddingVertical`** 을 쓴다.
   - 레이아웃이 반드시 유지되어야 하는 곳(탭, 배지)만 `maxFontSizeMultiplier`로 상한을 건다.
 - 대상 기기 폭은 **iPhone SE(375) ~ Pro Max(440)** 를 최소 범위로 본다.
+- **웹 적응형(데스크톱)**: 브라우저에서 앱이 뷰포트 전체 폭으로 늘어나면 모바일 기준 비율
+  (히어로 `aspect.hero`, 카드 `aspect.trackCard`)이 깨진다. `Screen`/`BleedScreen`이 **웹에서만**
+  `size.appMaxWidth`(430) 폭의 가운데 컬럼으로 제한한다(`alignSelf:'center'` + `maxWidth`, `Platform.OS==='web'`).
+  네이티브는 `maxWidth` 미적용(전체 폭). 컬럼 바깥 여백은 같은 `colors.bg`라 이음매 없이 실기기와
+  동일 비율로 보인다(`_layout`의 `SafeAreaProvider`·네비게이터 `contentStyle`이 bg를 깐다).
+  → 새 화면은 반드시 `Screen`/`BleedScreen`을 껍데기로 써야 이 적응형이 자동 적용된다.
 
 ---
 

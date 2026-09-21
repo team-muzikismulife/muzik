@@ -1,59 +1,82 @@
 import { Text, View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, opacity, size, spacing, typography } from '@/theme/tokens';
-import { Icon } from './Icon';
+import { colors, fontScale, radius, size, spacing, typography } from '@/theme/tokens';
 import { PressableScale } from './PressableScale';
 
 interface Props {
   /** 오늘의 미션 텍스트 (themes.ts 풀에서 dateKey 해시로 결정) */
   mission: string;
-  /** 오늘 곡을 이미 올렸는가 — 이미 올렸으면 스트립을 비활성화한다 */
+  /** 오늘 곡을 이미 올렸는가 — 문구만 완료 상태로 바꾼다 */
   done: boolean;
   onPress: () => void;
+  actionLabel?: string;
 }
 
 /**
  * 오늘의 미션 배너 (Figma 1:1763 "ButtonRecommand")
- * 헤더 바로 아래 풀블리드 그라데이션 스트립. 스트립 전체가 곡 등록 진입점이다.
- * 구버전 카드형 배너(카운트다운 + [참여하기] CTA)에서 교체됨 — Figma 최신 이터레이션.
+ * 날짜 탭 아래 둥근 그라데이션 카드. 카드 전체가 해당 날짜 플레이리스트 진입점이다.
  */
-export function MissionBanner({ mission, done, onPress }: Props) {
+export function MissionBanner({ mission, done, onPress, actionLabel = '플레이리스트 열기' }: Props) {
   return (
-    <PressableScale
-      onPress={onPress}
-      disabled={done}
-      accessibilityRole="button"
-      accessibilityLabel={
-        done ? `오늘의 미션 완료: ${mission}` : `오늘의 미션: ${mission}. 눌러서 곡 추천하기`
-      }
-    >
-      <LinearGradient
-        colors={[colors.missionFrom, colors.missionTo]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={[styles.strip, done && { opacity: opacity.done }]}
+    <View style={styles.container}>
+      <PressableScale
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={
+          done
+            ? `오늘의 미션 완료: ${mission}. 눌러서 ${actionLabel}`
+            : `오늘의 미션: ${mission}. 눌러서 ${actionLabel}`
+        }
       >
-        <View style={styles.row}>
+        <LinearGradient
+          colors={[colors.missionFrom, colors.missionTo]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.card}
+        >
           <Text style={[typography.captionMedium, styles.text]} numberOfLines={2}>
             {done ? `오늘의 곡을 올렸어요 · ${mission}` : mission}
           </Text>
-          {!done && <Icon name="arrowRight" size={size.iconLg} color={colors.text} />}
-        </View>
-      </LinearGradient>
-    </PressableScale>
+          <View style={styles.cta}>
+            <Text
+              style={[typography.captionMedium, styles.ctaText]}
+              maxFontSizeMultiplier={fontScale.tight}
+            >
+              모아듣기
+            </Text>
+          </View>
+        </LinearGradient>
+      </PressableScale>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  strip: {
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+  container: {
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.xl,
+  },
+  card: {
+    minHeight: size.missionStrip,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     borderColor: colors.missionBorder,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    minHeight: size.missionStrip,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    overflow: 'hidden',
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   text: { flex: 1 },
+  cta: {
+    minWidth: 80,
+    minHeight: size.ctaSm,
+    borderRadius: radius.full,
+    backgroundColor: colors.white10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  ctaText: { color: colors.text },
 });

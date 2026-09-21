@@ -3,7 +3,7 @@
 안녕하세요! 팀 프로젝트 협업을 위해 반드시 알아야 할 규칙을 모았습니다.
 처음 협업 규칙을 접하는 분들을 위해 **왜 이런 규칙이 필요한지** 상세히 설명해 두었으니, 개발을 시작하기 전 꼭 한 번 정독해주세요.
 
-> 스택: iOS 네이티브(Swift/SwiftUI) · App Clips · Firebase
+> 스택: 모바일 웹 베타 · React Native/Expo · Firebase, iOS는 후속.
 
 ---
 
@@ -38,9 +38,16 @@
 
 모두가 `main`에 직접 쓰면 충돌이 나고 빌드가 깨집니다. 각자 브랜치에서 작업 후 병합하는 **Git Flow(단순화)**를 씁니다.
 
-1. **`main`**: 스토어 배포용. 항상 빌드 성공 상태 유지, 직접 커밋 금지.
-2. **`dev`**: 개발 통합 브랜치. 완성된 기능이 우선 합쳐지는 곳.
+1. **`main`**: Vercel production 안정 버전. 항상 빌드 성공 상태 유지, 직접 커밋 금지.
+2. **`dev`**: 기능 통합 전용. production 배포 금지.
 3. **`feature/이슈번호-기능명`**: 내 작업 브랜치. 예) `feature/12-applip-entry`, `feature/15-daily-theme`
+4. **`hotfix/이슈번호-기능명`**: production 긴급 수정. main으로 PR 후 dev에 반영.
+
+이번 기존 작업 통합은 승인된 예외로 `codex/mobile-web-beta`에서 진행한다. dev 대상 draft PR 및 동일 CI/리뷰 기준을 적용하며 일반 기능 브랜치 규칙을 대체하지 않는다.
+
+`dev → main` 릴리즈 PR은 CI/리뷰/운영 설정 검사 및 Vercel build 확인 후 merge한다.
+Vercel Production Branch는 main, production only ignored build를 적용한다. 실제 프로젝트 설정 확인은 출시 보고서에 별도 기록한다.
+`demo/spark-web`은 Spark/Vercel 웹 데모용 임시 브랜치. 전략 브랜치에서 제외하며 필요한 변경을 검토하여 새 feature PR로 이관한 후 참조 해제 여부를 확인하고 삭제한다. 통째로 merge하거나 미커밋 작업을 버리지 않는다.
 
 ### 👉 작업 순서 (매우 중요)
 1. **Issue 생성** → 이슈 번호(예: #12) 발급

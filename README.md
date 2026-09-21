@@ -58,3 +58,8 @@ src/store/        # zustand
 src/types/        # Firestore 데이터 모델
 assets/fonts/     # Pretendard (Regular / Medium / SemiBold)
 ```
+# 모바일 웹 베타 통합 상태
+
+현재 변경은 실제 사용자용 모바일 웹 베타를 위한 통합이며 운영 배포 완료를 뜻하지 않습니다.
+`npm run build:web`는 production 필수 설정을 검사합니다. 테스트 fixture는 내부 검사 전용입니다.
+검증 근거와 남은 출시 조건은 `docs/launch-worker-report.md`, 배포 순서는 `docs/beta-operations.md`를 확인하세요.

@@ -16,5 +16,6 @@
 - [ ] 내 코드가 팀의 기존 코드를 망가뜨리지 않았는지 확인했나요?
 
 ## 🔗 관련 이슈 (Issue)
+<!-- feature → dev / hotfix → main 후 dev 반영 / 릴리즈 dev → main. 릴리즈는 CI·리뷰·운영 설정 검사·Vercel build 확인 결과를 본문에 기록하세요. dev는 production 배포 금지입니다. -->
 <!-- 예: Close #1 -->
 Close #

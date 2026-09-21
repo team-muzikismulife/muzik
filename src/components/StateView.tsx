@@ -12,6 +12,7 @@ interface Props {
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
+  compact?: boolean;
 }
 
 const DEFAULTS: Record<Status, { title: string; message: string }> = {
@@ -24,10 +25,10 @@ const DEFAULTS: Record<Status, { title: string; message: string }> = {
  * 로딩 / 빈 상태 / 에러를 한 컴포넌트로 통일한다 (docs/frontend.md § 4상태)
  * "에러가 발생했습니다"로 끝내지 않는다 — 항상 다음 행동(actionLabel)을 준다.
  */
-export function StateView({ status, title, message, actionLabel, onAction }: Props) {
+export function StateView({ status, title, message, actionLabel, onAction, compact }: Props) {
   if (status === 'loading') {
     return (
-      <View style={styles.root}>
+      <View style={[styles.root, compact && styles.compact]}>
         <ActivityIndicator color={colors.text} accessibilityLabel="불러오는 중" />
       </View>
     );
@@ -40,7 +41,7 @@ export function StateView({ status, title, message, actionLabel, onAction }: Pro
 
   return (
     <View
-      style={styles.root}
+      style={[styles.root, compact && styles.compact]}
       accessibilityRole={status === 'error' ? 'alert' : undefined}
       accessibilityLabel={`${text.title}. ${text.message}`}
     >
@@ -68,6 +69,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.huge,
     paddingHorizontal: spacing.xxl,
   },
+  compact: { paddingVertical: spacing.xxl },
   center: { textAlign: 'center' },
   action: {
     marginTop: spacing.sm,
