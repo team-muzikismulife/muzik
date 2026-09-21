@@ -1,3 +1,31 @@
+# PWA-02B 설치와 운영 구현 보고
+
+2026-09-21. 기존 PR [#42](https://github.com/team-muzikismulife/muzik/pull/42), `codex/pwa-core` → `dev` draft를 이어 진행했다. main 병합·실제 외부 연결·배포 없음.
+
+## 완료 범위
+
+- 고정 HTTPS 주소의 홈 설치 안내, 첫 실제 등록 성공 후 1회 제안, 닫기7일 억제, 지원 브라우저의 명시 클릭 설치, iPhone Safari/인앱 안내, 설치 상태 숨김. preview에서는 설치를 권하지 않는다.
+- 사용자 선택 worker 업데이트와 나중에 적용, 저장/미보관 입력 중 적용 차단, 초안 및 미확정 요청 ID/payload 복구. 실제 두 정적 버전으로 waiting/apply/구캐시 정리/rollback을 검사했다. 다른 탭의 worker 변경에 강제 reload하지 않는다.
+- 오프라인 cold reopen 시 본인 초안 접근·편집. 로컬 소유자 정보는 세션이나 팀 권한이 아니며 권한 재확인 전 서버 저장을 막는다. 온라인 자동 제출 없음.
+- 서버 운영 권한, 신고 검토/숨김·종결, 비공개 원문 보존/공개 필드 제거/집계·표지·슬롯 일치, 피드백 입력 보존/중복 접수 방지/처리, 메타 갱신5분 캐시와 요청 제한.
+- 서버 KST 일 방문·설치 안내·설치 요청 수락·standalone 실행 구분. fixed origin best-effort 계측, 외부 분석/추적 ID/무한 재시도 없음. 공식 사용량 콘솔·무료 일시정지·복구·정적 버전 rollback 안내.
+- 피드백 입력 이름과 글자 수를 분리해 접근성을 수정했다. 첫 worker 설치를 업데이트로 표시하지 않도록 보완하고 공개 화면/HTTPS 브라우저 회귀를 추가했다.
+
+## 검증 근거
+
+- `804f9b3`: [PWA CI35610204007](https://github.com/team-muzikismulife/muzik/actions/runs/35610204007) success. unit19, 실제 DB/Edge24묶음, 연결 브라우저13(1.1분), 공개 브라우저1, Deno/빌드/dry-run. [같은 HEAD Legacy CI](https://github.com/team-muzikismulife/muzik/actions/runs/35610204012)와 PR 템플릿도 success.
+- 로컬 unit19/build/Deno/dry-run/공개 브라우저1 PASS. 로컬 Docker 미설치로 연결12건은 skip하고 CI에서는 모두 실제 실행했다. 이후 첫 worker 안내 보완의 최신 CI는 PR 체크를 기준으로 한다.
+- CI 화면 artifact에서 설치 안내, 입력/업데이트390px, 운영360/390px, 글자200%, 360x420 입력 공간을 확인했다. 긴 피드백 줄바꿈과 버튼 접근을 검사했다. 화면/fixture는 운영 번들에 들어가지 않는다.
+- 실제 CI 로컬 Postgres/Auth/Edge/Realtime를 사용한다. Google claim·YouTube 메타/이벤트·설치 이벤트·standalone 표시 모드는 fixture다. 실제 iOS/Android 설치·OAuth·YouTube·Cloudflare rollback 검증으로 표시하지 않는다.
+
+## 남은 외부 검증
+
+사용자가 준비한 새 Supabase 계정/프로젝트와 Google/YouTube/Cloudflare 연결 및 실기기 설치·종료/재실행·같은 계정 복원·업데이트·음악 재생은 마지막 단계에 남긴다. 기존 서비스 프로젝트를 재사용하지 않고, 요금·키·운영 데이터·홍보를 변경하지 않았다. 팀 나가기/새 글로벌 탭은 추가하지 않았다.
+
+독립 검토·최신 CI·브랜치 보호·기존 배포 영향 확인 전 병합하지 않는다. 과거 Vercel 실패를 성공 처리하거나 체크에서 제거하지 않았다. [연결 절차](pwa-connection.md), [운영/복구](pwa-operations.md)를 함께 검토한다.
+
+---
+
 # PWA-02A 일상 흐름 구현 보고
 
 2026-09-21. PR [#42](https://github.com/team-muzikismulife/muzik/pull/42), `codex/pwa-core` → `dev` draft. 실제 외부 계정/프로젝트 연결, main 병합, 운영 배포 없음.

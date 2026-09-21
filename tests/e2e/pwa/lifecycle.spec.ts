@@ -66,6 +66,16 @@ test.describe("PWA 수명과 운영", () => {
     const t = await setup(browser);
     try {
       await t.page.goto(`${origin}/`);
+      await t.page.evaluate(async () => {
+        await navigator.serviceWorker.ready;
+      });
+      await expect(
+        t.page.getByRole("complementary", { name: "앱 업데이트" }),
+      ).toHaveCount(0);
+      await swReady(t.page);
+      await expect(
+        t.page.getByRole("complementary", { name: "앱 업데이트" }),
+      ).toHaveCount(0);
       await t.page
         .getByRole("button", { name: "설치 안내", exact: true })
         .click();

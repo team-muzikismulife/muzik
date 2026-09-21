@@ -13,6 +13,12 @@ test("공개 화면·미연동·모바일 폭·manifest", async ({
     await expect(
       page.getByRole("heading", { name: "MUZIK", exact: true }),
     ).toBeVisible();
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await expect(
+      page.getByRole("complementary", { name: "앱 업데이트" }),
+    ).toHaveCount(0);
     await page
       .locator("img")
       .evaluateAll(async (images: HTMLImageElement[]) => {

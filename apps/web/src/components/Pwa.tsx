@@ -246,7 +246,7 @@ export function AppUpdate() {
     let hadController = Boolean(navigator.serviceWorker.controller);
     let reg: ServiceWorkerRegistration | undefined;
     const inspect = () => {
-      if (alive && reg?.waiting) {
+      if (alive && navigator.serviceWorker.controller && reg?.waiting) {
         setWaiting(reg.waiting);
         setDeferred(false);
       }
@@ -257,12 +257,12 @@ export function AppUpdate() {
     };
     const controlled = () => {
       if (!alive) return;
+      setWaiting(null);
       if (!hadController && !consent.current) {
         hadController = true;
         return;
       }
       hadController = true;
-      setWaiting(null);
       if (
         consent.current &&
         !currentSafety.current.busy &&
