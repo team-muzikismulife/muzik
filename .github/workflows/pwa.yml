@@ -56,6 +56,13 @@ jobs:
       - run: npm --prefix apps/web run test:browser
         env:
           PWA_TEST_BACKEND: '1'
+      - name: 검토용 화면 보존
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pwa-screenshots
+          path: tests/artifacts/pwa/**/*.png
+          retention-days: 7
       - name: 비밀값 제외 실패 진단
         if: failure()
         run: node tests/fixtures/redact-log.mjs "$RUNNER_TEMP/supabase-start.log" "$RUNNER_TEMP/edge.log"

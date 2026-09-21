@@ -3,7 +3,7 @@
 안녕하세요! 팀 프로젝트 협업을 위해 반드시 알아야 할 규칙을 모았습니다.
 처음 협업 규칙을 접하는 분들을 위해 **왜 이런 규칙이 필요한지** 상세히 설명해 두었으니, 개발을 시작하기 전 꼭 한 번 정독해주세요.
 
-> 스택: 모바일 웹 베타 · React Native/Expo · Firebase, iOS는 후속.
+> 운영 스택: React/Vite PWA · Supabase · Cloudflare. 이전 Expo/Firebase/native는 legacy에 보존한다.
 
 ---
 
@@ -38,15 +38,15 @@
 
 모두가 `main`에 직접 쓰면 충돌이 나고 빌드가 깨집니다. 각자 브랜치에서 작업 후 병합하는 **Git Flow(단순화)**를 씁니다.
 
-1. **`main`**: Vercel production 안정 버전. 항상 빌드 성공 상태 유지, 직접 커밋 금지.
+1. **`main`**: production 안정 코드. 항상 빌드 성공 상태 유지, 직접 커밋 금지. 실제 서비스 연결·배포 완료와 코드 병합은 구분한다.
 2. **`dev`**: 기능 통합 전용. production 배포 금지.
 3. **`feature/이슈번호-기능명`**: 내 작업 브랜치. 예) `feature/12-applip-entry`, `feature/15-daily-theme`
 4. **`hotfix/이슈번호-기능명`**: production 긴급 수정. main으로 PR 후 dev에 반영.
 
-이번 기존 작업 통합은 승인된 예외로 `codex/mobile-web-beta`에서 진행한다. dev 대상 draft PR 및 동일 CI/리뷰 기준을 적용하며 일반 기능 브랜치 규칙을 대체하지 않는다.
+이전 베타 통합은 `codex/mobile-web-beta`, 승인된 PWA 재구축은 `codex/pwa-core`에서 진행한다. dev 대상 draft PR 및 동일 CI/리뷰 기준을 적용하며 일반 기능 브랜치 규칙을 대체하지 않는다.
 
-`dev → main` 릴리즈 PR은 CI/리뷰/운영 설정 검사 및 Vercel build 확인 후 merge한다.
-Vercel Production Branch는 main, production only ignored build를 적용한다. 실제 프로젝트 설정 확인은 출시 보고서에 별도 기록한다.
+`dev → main` 릴리즈 PR은 최신 PWA Core/Legacy Compatibility CI, 독립 리뷰, 보호 요건 및 기존 자동 배포 영향 확인 후 merge한다. 보호 규칙을 우회하지 않는다.
+새 Cloudflare 빌드는 apps/web만 사용한다. 기존 Vercel 연결의 브랜치/root/build 설정을 병합 전에 확인한다. 확인·변경·실제 배포 결과는 별도로 기록하며, Supabase 계정 연결은 사용자 준비 이후 마지막 단계다.
 `demo/spark-web`은 Spark/Vercel 웹 데모용 임시 브랜치. 전략 브랜치에서 제외하며 필요한 변경을 검토하여 새 feature PR로 이관한 후 참조 해제 여부를 확인하고 삭제한다. 통째로 merge하거나 미커밋 작업을 버리지 않는다.
 
 ### 👉 작업 순서 (매우 중요)
@@ -97,7 +97,7 @@ API 키·인증서 등 비밀 정보는 소스코드/GitHub에 올리면 안 됩
 
 - **`GoogleService-Info.plist`** (Firebase 설정): `.gitignore` 처리됨. 팀원끼리 **별도 채널(메신저 등)로 공유**하세요.
 - **`Secrets.xcconfig`**: 로컬 시크릿용. `Secrets.example.xcconfig`를 복사해 만들고, 실제 값은 커밋하지 않습니다. 새 키를 추가하면 example에도 껍데기를 추가해 팀원에게 알리세요.
-- **YouTube Data API 키는 앱에 넣지 않습니다** — Cloud Functions(서버)에만 보관합니다. (요구명세서 NFR-04)
+- **YouTube Data API 키는 앱에 넣지 않습니다** — 새 운영은 Supabase Edge secrets, legacy는 Cloud Functions 서버에만 보관합니다.
 - 인증서/프로비저닝(`*.p8`, `*.p12`, `*.mobileprovision`)도 커밋 금지.
 
 ---

@@ -114,3 +114,4 @@ tests/artifacts/
 apps/web/public/icons/
 .env.*.local
 legacy/firebase/functions/lib/
+/scratch-vite*.log
