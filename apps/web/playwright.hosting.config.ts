@@ -5,7 +5,7 @@ export default defineConfig({
   workers: 1,
   use: { baseURL: "http://127.0.0.1:4175" },
   webServer: {
-    command: "wrangler dev --local --ip 127.0.0.1 --port 4175",
+    command: "node scripts/vercel-static-server.mjs",
     url: "http://127.0.0.1:4175",
     reuseExistingServer: false,
     timeout: 60000,

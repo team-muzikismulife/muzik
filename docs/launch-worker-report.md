@@ -1,3 +1,16 @@
+# PWA-04 Vercel 연결 준비
+
+2026-09-22. Cloudflare를 활성 배포 경로에서 제거하고 React/Vite PWA의 Vercel 정적 배포 계약을 준비했다. 아래 PWA-01~03의 Cloudflare 항목은 당시 검증 이력이며 현재 실행 절차가 아니다.
+
+- 저장소 루트 `vercel.json`에 Vite install/build, `apps/web/dist`, 명시적 SPA 직접 진입 rewrite, 누락 자산 404, 보안·재검증·immutable 헤더를 고정했다. SSR/Functions/Cron은 추가하지 않았다.
+- `build:vercel`은 Vercel production/preview와 Git commit SHA, 실제 HTTPS Supabase 공개 설정·고정 origin을 요구한다. 비밀키는 거부한다. Preview에서는 설치 안내와 서버 설치 지표를 차단한다.
+- 로컬 Vercel 설정 계약 검사와 Playwright 직접 주소/404/MIME/cache/manifest/192·512·maskable·Apple PNG 회귀를 추가했다. 이는 실제 Vercel 프로젝트, DNS, TLS, OAuth, production deploy의 검증이 아니다.
+- Production Branch=`main`, Root Directory=`.`, Ignored Build Step=`Only build production`을 소유자가 인증된 Project Settings에서 설정해야 한다. `dev`는 통합 전용이다.
+- 기존 공개 Expo 목업과 `muzikismylife/dist` 프로젝트는 변경하지 않았다. GitHub 조직 저장소는 Vercel Hobby 팀에 연결할 수 없고 Hobby는 개인·비상업 용도이므로, 적격 팀/요금제와 비용 승인이 없으면 연결을 중단한다.
+- 실제 Vercel/Supabase/Google/YouTube 연결, 환경변수 설정, PR merge, production 배포, 실기기 설치, Instant Rollback은 모두 미실행이다. 최신 커밋과 CI 결과는 PR [#42](https://github.com/team-muzikismulife/muzik/pull/42)와 release PR [#43](https://github.com/team-muzikismulife/muzik/pull/43)의 최신 체크를 따른다.
+
+---
+
 # PWA-03 연결 전 릴리즈 준비
 
 2026-09-21. 실제 서비스 연결·배포·main 병합을 하지 않고, 검토 지적 보완과 통합/릴리즈 준비를 수행했다.

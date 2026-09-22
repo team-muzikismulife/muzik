@@ -18,13 +18,13 @@
 | cold reopen 본인 초안·멤버십 재확인            | lifecycle browser                                   | 실제 SW 캐시, localUid는 권한 아님               |
 | 첫 성공 자동 설치 안내·실제 보이는 닫기        | lifecycle 360/390 viewport 및 hit-test              | 자동 노출 미집계, 강제 설치 없음                 |
 | 설치 클릭/수락/standalone·새로고침 상태        | lifecycle + DB + install unit                       | native 설치 이벤트/관련앱/표시 모드 fixture      |
-| 업데이트 대기/명시 적용/나중에·구캐시·rollback | lifecycle A/B generateSW                            | 로컬 HTTPS 실제 worker, Cloudflare rollback 아님 |
+| 업데이트 대기/명시 적용/나중에·구캐시·rollback | lifecycle A/B generateSW                            | 로컬 HTTPS 실제 worker, Vercel rollback 아님     |
 | 44px·360/390·큰 글자·키보드 공간               | daily/lifecycle screenshots/geometry                | 실제 OS 키보드 아닌 축소 viewport                |
 | 신고 원문 보호·숨김 집계·권한 회수             | DB/Edge + operations browser                        | private 운영 권한, metadata 위조 차단            |
 | 피드백 입력/요청 보존·재접수·처리              | lifecycle/DB                                        | 서버 접수, 실패 뒤 수동 확인                     |
 | KST 행동 계정 수·운영자 제외                   | DB/Edge + lifecycle metrics                         | 테스트는 격리 DB, 현재 운영자 집계 제외          |
 | 고정 origin·version·키 분리                    | release-env unit/build boundary                     | 형식 검사, 소유/권한 확인 아님                   |
-| SPA 직접 주소·갱신 헤더·아이콘                 | test:assets 로컬 Wrangler                           | 실제 Cloudflare DNS/TLS 미검증                   |
+| SPA 직접 주소·404·캐시/MIME·아이콘             | test:hosting 로컬 Vercel 설정 계약                  | 실제 Vercel build/DNS/TLS 미검증                 |
 | legacy/mock/test 분리                          | 빌드 module graph + Legacy CI                       | 원본 변경/기존 배포 보존                         |
 
-미실행 묶음: 실제 새 Supabase/Google/YouTube/Cloudflare 연결, 실 두 계정, iPhone/Android/카카오의 설치·완전 종료·복원·실재생·실배포 rollback, 기존 Vercel production 영향 최종 확인. [마지막 연결 절차](pwa-release.md)에 필요한 사용자 행동을 모았다.
+미실행 묶음: 실제 새 Supabase/Google/YouTube/Vercel 연결, 실 두 계정, iPhone/Android/카카오의 설치·완전 종료·복원·실재생·실배포 rollback, 기존 Vercel 목업 프로젝트와 production 영향 최종 확인. [마지막 연결 절차](pwa-release.md)에 필요한 사용자 행동을 모았다.
