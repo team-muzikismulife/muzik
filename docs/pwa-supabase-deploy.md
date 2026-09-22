@@ -27,6 +27,17 @@ if ($LASTEXITCODE -ne 0) { throw 'Project lookup failed.' }
 
 `login`은 로컬 자격 저장소를 사용한다. 이미 승인된 MUZIK 자격이 저장된 현재 환경에서는 불필요하게 다시 로그인하지 않는다. Personal Access Token과 `SUPABASE_DB_PASSWORD`는 자동 로그인 또는 임시 login role이 실패할 때만 쓰는 대안이며 필수 선행값이 아니다. 대안이 필요하면 사용자가 새 터미널의 세션 환경변수로 직접 입력하고 출력하지 않는다. [공식 CLI 인증](https://supabase.com/docs/reference/cli/supabase-login).
 
+현재 연결 환경에서는 다시 `link`하지 않는다. 새 checkout이나 `supabase/.temp/project-ref`가 없는 환경에서만 먼저 `projects list`의 project ref·이름·소유 조직을 승인 대상과 대조한다. 대조가 끝난 뒤 아래 link 블록을 별도로 실행한다.
+
+```powershell
+$muzikProjectRef = 'dtljjrvkfuotriivrdza'
+& $muzikCli link --project-ref $muzikProjectRef --profile supabase --agent no
+if ($LASTEXITCODE -ne 0) { throw 'Project link failed.' }
+if ((Get-Content -Raw 'supabase/.temp/project-ref').Trim() -ne $muzikProjectRef) {
+    throw 'Linked project does not match the approved target.'
+}
+```
+
 ## 읽기 전용 재확인
 
 이미 적용된 migration을 다시 밀지 않고 먼저 현재 상태를 확인한다.
@@ -48,14 +59,24 @@ if ($LASTEXITCODE -ne 0) { throw 'Function lookup failed.' }
 
 ## 다시 적용해야 하는 경우
 
-새 migration이나 승인된 Edge 변경이 생긴 경우에만 대상과 dry-run을 다시 확인하고 총괄 승인 뒤 적용한다.
+새 migration이나 승인된 Edge 변경이 생긴 경우에만 대상을 확인하고 아래 읽기 전용 dry-run 블록만 먼저 실행한다.
 
 ```powershell
 & $muzikCli db push --linked --dry-run --profile supabase --agent no
+if ($LASTEXITCODE -ne 0) { throw 'Migration dry-run failed.' }
+```
+
+출력의 대상 ref와 pending migration을 검토한다. 이미 승인된 변경은 같은 승인 범위에서 아래 실제 적용 블록으로 진행하며 별도 사용자 재승인을 요구하지 않는다. dry-run 검토가 끝나기 전에는 이 블록을 실행하지 않는다.
+
+```powershell
 & $muzikCli db push --linked --profile supabase --agent no --yes
+if ($LASTEXITCODE -ne 0) { throw 'Migration apply failed.' }
 & $muzikCli migration list --linked --profile supabase --agent no
+if ($LASTEXITCODE -ne 0) { throw 'Migration verification failed.' }
 & $muzikCli functions deploy muzik --project-ref $muzikProjectRef --profile supabase --agent no --use-api
+if ($LASTEXITCODE -ne 0) { throw 'Function deploy failed.' }
 & $muzikCli functions list --project-ref $muzikProjectRef --profile supabase --agent no
+if ($LASTEXITCODE -ne 0) { throw 'Function verification failed.' }
 ```
 
 `--use-api`는 서버에서 bundle하여 로컬 Docker를 요구하지 않는다. `--prune`, `--no-verify-jwt`를 쓰지 않는다. 로컬 `supabase/config.toml`의 localhost Auth 설정을 원격에 올리는 `config push`도 실행하지 않는다. YouTube key와 OAuth secret은 웹 번들에 넣지 않는다.

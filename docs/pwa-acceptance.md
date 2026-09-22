@@ -27,4 +27,4 @@
 | SPA 직접 주소·404·캐시/MIME·아이콘             | test:hosting 로컬 Vercel 설정 계약                  | 실제 Vercel build/DNS/TLS 미검증                 |
 | legacy/mock/test 분리                          | 빌드 module graph + Legacy CI                       | 원본 변경/기존 배포 보존                         |
 
-실 Supabase에는 migration/Edge가 적용됐고 기본 비인증 REST/RLS·CORS 경계를 확인했다. 미실행 묶음: Google OAuth/YouTube 실제 연결, 실 두 계정, iPhone/Android/카카오의 설치·완전 종료·복원·실재생, Vercel production 배포·rollback, 기존 Vercel 목업 프로젝트와 production 영향 최종 확인. [남은 연결 절차](pwa-release.md)에 필요한 사용자 행동을 모았다.
+실 Supabase에는 migration/Edge가 적용됐고 기본 비인증 REST/RLS·CORS 경계를 확인했다. 기존 Vercel `dist`는 `demo/spark-web` production branch와 production-only build로 격리했으며 현재 배포는 유지했다. 미실행 묶음: Google OAuth/YouTube 실제 연결, 실 두 계정, iPhone/Android/카카오의 설치·완전 종료·복원·실재생, 신규 `muzik-pwa` production 배포·rollback. [남은 연결 절차](pwa-release.md)에 필요한 사용자 행동을 모았다.

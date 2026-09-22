@@ -1,3 +1,13 @@
+# PWA-07 Supabase 적용 가드·Vercel 현재 상태 정정
+
+2026-09-22. Supabase runbook의 dry-run과 실제 적용을 별도 PowerShell 블록으로 분리하고, 모든 CLI 호출 바로 뒤에 `$LASTEXITCODE` 실패 중단을 추가했다. 현재 연결환경은 재로그인·재링크하지 않으며, 새 checkout에서만 projects list의 대상·소유 조직을 대조한 뒤 별도 link 블록을 사용한다.
+
+기존 Vercel `dist`는 인증된 화면에서 Production Branch를 `main`에서 `demo/spark-web`로 저장했고 Ignored Build Step=`Only build production`을 재확인했다. 현재 배포·주소·환경변수는 유지했으며 redeploy하지 않았다. 원격 branch HEAD `af763f3`과 실제 배포 SHA `c13b952`가 다르므로 임의 redeploy하지 않는다. 신규 `muzik-pwa`는 Production Branch=`main`, 같은 Ignored Build Step을 사용한다. 최신 Vercel SUCCESS는 `Canceled by Ignored Build Step`이며 실제 앱 배포 통과가 아니다.
+
+Google OAuth·YouTube 자격·별도 약관 응답, 실제 사용자·기기·신규 production 배포는 여전히 미검증이다. 클라우드/CUA/병합을 수행하지 않았다.
+
+---
+
 # PWA-06 Supabase 실제 연결·비인증 경계 확인
 
 2026-09-22. 승인 ref `dtljjrvkfuotriivrdza`를 독립 확인했다. `migration list`에서 Local/Remote `202609210001`~`202609210004`가 모두 일치했고, `muzik` Edge Function은 ACTIVE/version 1/`verify_jwt=true`였다.

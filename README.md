@@ -44,8 +44,8 @@ Legacy 검사는 `legacy/expo`, `legacy/firebase/functions`에서 각각 `npm ci
 - `dev`: 통합. production 자동 배포 금지.
 - `main`: 검토·CI를 통과한 안정 코드. 코드 병합과 실제 서비스 연결은 별개입니다.
 - feature 작업은 `dev`로 PR. production 수정은 main 반영 후 dev에 동기화합니다.
-- Vercel 프로젝트 루트는 저장소 루트(`.`), Production Branch는 `main`, 산출물은 `apps/web/dist`입니다. `dev`와 feature 브랜치는 production으로 승격하지 않습니다.
-- 기존 Vercel/Firebase 목업 프로젝트는 자동 재사용하지 않습니다. 소유자·Git 연결·요금제·프로젝트 설정을 확인하기 전에는 연결하거나 덮어쓰지 않습니다.
+- 신규 Vercel `muzik-pwa`의 프로젝트 루트는 저장소 루트(`.`), Production Branch는 `main`, 산출물은 `apps/web/dist`입니다. `dev`와 feature 브랜치는 production으로 승격하지 않습니다.
+- 기존 Vercel `dist` 목업은 Production Branch=`demo/spark-web`, Ignored Build Step=`Only build production`으로 격리했습니다. 현재 배포·주소·환경변수는 그대로이며 원격 branch HEAD와 실제 배포 SHA가 달라 임의 재배포하지 않습니다. 신규 `muzik-pwa`만 Production Branch=`main`을 사용합니다.
 
 [구현 현황](docs/pwa-implementation.md) · [마지막 외부 연결 절차](docs/pwa-connection.md) · [운영과 복구](docs/pwa-operations.md) · [릴리즈 실행 순서](docs/pwa-release.md) · [검증 대조표](docs/pwa-acceptance.md)
 
