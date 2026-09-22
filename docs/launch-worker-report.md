@@ -1,3 +1,11 @@
+# PWA-05 공개 저장소 정책 정정과 Supabase 적용 준비
+
+2026-09-22. GitHub API에서 저장소 PUBLIC을 확인했다. Vercel 최신 Git 문서는 Hobby의 비공개 조직 저장소 제한과 공개 저장소를 구분한다. 조직 소유라는 이유만으로 유료 요금제가 필수라는 이전 설명을 정정했다. Hobby 개인·비상업 조건과 실제 연결 권한은 별도 확인 사항이다.
+
+Supabase CLI 2.117.0 공식 소스에서 `--profile muzik-pwa`가 계정 이름이 아닌 설정 파일 경로로 해석되어 확장자 오류를 내는 원인을 확인했다. 기존 자격을 변경하지 않는 세션 토큰 방식과 정확한 migration/Edge 실행 절차를 `pwa-supabase-deploy.md`에 정리했다. 자격 입력, 실제 로그인/API 접근, DB 적용, Edge 배포는 수행하지 않았다.
+
+---
+
 # PWA-04 Vercel 연결 준비
 
 2026-09-22. Cloudflare를 활성 배포 경로에서 제거하고 React/Vite PWA의 Vercel 정적 배포 계약을 준비했다. 아래 PWA-01~03의 Cloudflare 항목은 당시 검증 이력이며 현재 실행 절차가 아니다.
@@ -6,7 +14,7 @@
 - `build:vercel`은 Vercel production/preview와 Git commit SHA, 실제 HTTPS Supabase 공개 설정·고정 origin을 요구한다. 비밀키는 거부한다. Preview에서는 설치 안내와 서버 설치 지표를 차단한다.
 - 로컬 Vercel 설정 계약 검사와 Playwright 직접 주소/404/MIME/cache/manifest/192·512·maskable·Apple PNG 회귀를 추가했다. 이는 실제 Vercel 프로젝트, DNS, TLS, OAuth, production deploy의 검증이 아니다.
 - Production Branch=`main`, Root Directory=`.`, Ignored Build Step=`Only build production`을 소유자가 인증된 Project Settings에서 설정해야 한다. `dev`는 통합 전용이다.
-- 기존 공개 Expo 목업과 `muzikismylife/dist` 프로젝트는 변경하지 않았다. GitHub 조직 저장소는 Vercel Hobby 팀에 연결할 수 없고 Hobby는 개인·비상업 용도이므로, 적격 팀/요금제와 비용 승인이 없으면 연결을 중단한다.
+- 기존 공개 Expo 목업과 `muzikismylife/dist` 프로젝트는 변경하지 않았다. Hobby 정책의 공개/비공개 저장소 구분은 위 PWA-05 정정을 따른다. Hobby 개인·비상업 용도 조건은 별도로 확인한다.
 - 실제 Vercel/Supabase/Google/YouTube 연결, 환경변수 설정, PR merge, production 배포, 실기기 설치, Instant Rollback은 모두 미실행이다. 최신 커밋과 CI 결과는 PR [#42](https://github.com/team-muzikismulife/muzik/pull/42)와 release PR [#43](https://github.com/team-muzikismulife/muzik/pull/43)의 최신 체크를 따른다.
 
 ---

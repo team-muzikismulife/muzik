@@ -15,7 +15,7 @@
 
 ## 계정·요금제 보류 조건
 
-이 저장소는 GitHub 조직 `team-muzikismulife` 소유다. Vercel 공식 제한상 Hobby 팀은 Git 조직 소유 저장소를 프로젝트에 연결할 수 없다. 또한 Hobby는 개인·비상업 용도로 제한된다. 소유자는 연결 전에 조직 저장소를 지원하는 적격 Vercel 팀/요금제와 비용 승인을 확인해야 하며, 제한을 우회하기 위한 개인 fork나 별도 배포 경로를 만들지 않는다. [Vercel limits](https://vercel.com/docs/limits#connecting-a-project-to-a-git-repository), [Hobby plan](https://vercel.com/docs/plans/hobby).
+2026-09-22 GitHub API 확인 결과 `team-muzikismulife/muzik`은 PUBLIC 저장소다. 최신 Vercel Git 문서의 Hobby 제한은 GitHub 조직의 PRIVATE 저장소 배포에 적용되며 공개 저장소는 별도로 구분한다. 조직 소유라는 이유만으로 유료 전환이 필수라고 판단하지 않는다. 실제 Git 연결 권한과 배포 승인은 선택한 프로젝트에서 확인한다. Hobby의 개인·비상업 용도 조건은 별도로 적용된다. [Vercel Git 정책](https://vercel.com/docs/git#deploying-private-git-repositories), [Hobby plan](https://vercel.com/docs/plans/hobby).
 
 이미 공개된 `dist-iota-six-90.vercel.app` Expo 목업은 이 React/Vite 릴리즈의 증거가 아니다. 기존 프로젝트 `muzikismylife/dist`의 소유자, 연결 저장소, Root Directory, Production Branch, 환경변수, 도메인을 인증된 화면에서 먼저 확인한다. 목적이 다르거나 불명확하면 덮어쓰지 않고 새로 승인된 프로젝트를 사용한다.
 
@@ -43,7 +43,7 @@ npm --prefix apps/web run test:browser
 1. 적격 Vercel 팀/요금제와 기존 `dist` 프로젝트의 용도를 확인한다. 유료 전환, 카드 등록, 새 프로젝트 생성, 기존 연결 변경은 별도 승인 없이 수행하지 않는다.
 2. Vercel 프로젝트의 Root Directory=`.`, Framework=`Vite`, Production Branch=`main`, Ignored Build Step=`Only build production`을 대조한다. install/build/output은 저장소 `vercel.json`을 따른다.
 3. Vercel Production 환경에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PUBLIC_ORIGIN`을 설정한다. `VITE_APP_VERSION`은 설정하지 않는다. Preview를 허용할 때는 같은 공개 값의 범위와 OAuth 허용 주소를 별도 검토한다.
-4. 새 Supabase 프로젝트를 확인하고 migration dry-run 후 적용한다. `YOUTUBE_API_KEY`, 정확한 HTTPS origin 목록인 `WEB_ORIGINS`를 Edge secrets에 설정하고 운영 `supabase/functions/muzik/index.ts`만 배포한다. `tests/fixtures/edge.ts`는 배포하지 않는다.
+4. 승인된 Supabase 프로젝트를 확인하고 [CLI 적용 절차](pwa-supabase-deploy.md)에 따라 migration dry-run 후 적용한다. `YOUTUBE_API_KEY`, 정확한 HTTPS origin 목록인 `WEB_ORIGINS`를 Edge secrets에 설정하고 운영 `supabase/functions/muzik/index.ts`만 배포한다. `tests/fixtures/edge.ts`는 배포하지 않는다.
 5. Supabase Auth Site URL=`<PRODUCTION_ORIGIN>`, redirect=`<PRODUCTION_ORIGIN>/auth/callback`; Google authorized redirect=`https://<PROJECT_REF>.supabase.co/auth/v1/callback`을 대조한다.
 6. `feature/* -> dev` CI와 리뷰를 완료한 뒤 `dev -> main` release PR에서 전체 CI와 Vercel build 설정을 확인한다. main merge가 production 배포를 일으킬 수 있으므로 대상 프로젝트 확인 전 merge하지 않는다.
 7. 배포 후 HTTPS 응답, 직접 주소, 없는 자산 404, auth callback, manifest/아이콘/SW 버전, 두 Google 계정의 팀·곡·RLS·신고·피드백·Realtime와 실제 YouTube 제한 영상을 확인한다.
