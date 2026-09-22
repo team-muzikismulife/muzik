@@ -1,14 +1,11 @@
 {
-  "name": "muzik-tooling",
-  "version": "1.0.0",
-  "private": true,
-  "description": "커밋 컨벤션 검사용 개발 도구 (앱 코드와 무관, Node 툴링 전용)",
+  "name": "muzik-repository", "private": true,
   "scripts": {
+    "dev": "npm --prefix apps/web run dev",
+    "build": "npm --prefix apps/web run build",
+    "test": "npm --prefix apps/web test",
+    "legacy:build": "npm --prefix legacy/expo run lint && npm --prefix legacy/expo run build:emulator && npm --prefix legacy/firebase/functions run build",
     "prepare": "husky"
   },
-  "devDependencies": {
-    "@commitlint/cli": "^19.5.0",
-    "@commitlint/config-conventional": "^19.5.0",
-    "husky": "^9.1.6"
-  }
+  "devDependencies": { "@commitlint/cli": "^19.5.0", "@commitlint/config-conventional": "^19.5.0", "husky": "^9.1.6" }
 }

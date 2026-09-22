@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "MUZIK IS MY LIFE",
+    "slug": "muzik-is-my-life",
+    "version": "0.1.0",
+    "scheme": "muzik",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#121212",
+    "ios": {
+      "bundleIdentifier": "com.muzikismylife.app",
+      "supportsTablet": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
