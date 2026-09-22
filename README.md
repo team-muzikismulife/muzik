@@ -6,7 +6,7 @@
 
 이전 React Native/Firebase 구현은 `legacy/expo`와 `legacy/firebase`에 보존합니다. 현재 운영 진입점은 아래 React/Vite/Supabase PWA입니다.
 
-React/Vite 웹, Supabase 서버 계약과 권한, Vercel 정적 배포 설정을 구현 중입니다. 실 Supabase 프로젝트와 Google/YouTube 연결 및 운영 배포는 아직 하지 않았습니다. 설정 없이도 공개 화면은 열리며 로그인·저장 성공을 가장하지 않습니다.
+React/Vite 웹, Supabase 서버 계약과 권한, Vercel 정적 배포 설정을 구현 중입니다. 승인된 Supabase 프로젝트에는 migration과 `muzik` Edge Function이 적용됐고 기본 비인증 경계를 확인했습니다. Google/YouTube 실연결, 두 사용자 흐름, 실기기 PWA와 Vercel production 배포는 아직 검증하지 않았습니다. 설정 없이도 공개 화면은 열리며 로그인·저장 성공을 가장하지 않습니다.
 
 일상 사용 흐름에는 팀 참여, 자동 영상 확인, 사용자·팀·날짜별 초안과 저장 재시도, 추천 기록별 모아듣기, 지난 기록, 개인 숨김·신고·닉네임 변경이 포함됩니다. 고정 주소 설치 안내, 사용자 선택 업데이트, 오프라인 재실행 초안, 운영자 신고 처리, 피드백·최소 지표도 구현했습니다. 코드와 격리 테스트 완료는 실제 서비스 출시 완료를 뜻하지 않습니다.
 

@@ -1,4 +1,4 @@
-# 연결 전 검증 대조표
+# 연결·검증 대조표
 
 승인된 일상 흐름과 PWA/운영 범위를 검사 단위에 대응한다. 성공 여부·커밋·CI URL은 PR 최신 체크와 구현 보고를 기준으로 한다. 아래 자동 검사는 실제 휴대폰/외부 계정 연결의 대체물이 아니다.
 
@@ -27,4 +27,4 @@
 | SPA 직접 주소·404·캐시/MIME·아이콘             | test:hosting 로컬 Vercel 설정 계약                  | 실제 Vercel build/DNS/TLS 미검증                 |
 | legacy/mock/test 분리                          | 빌드 module graph + Legacy CI                       | 원본 변경/기존 배포 보존                         |
 
-미실행 묶음: 실제 새 Supabase/Google/YouTube/Vercel 연결, 실 두 계정, iPhone/Android/카카오의 설치·완전 종료·복원·실재생·실배포 rollback, 기존 Vercel 목업 프로젝트와 production 영향 최종 확인. [마지막 연결 절차](pwa-release.md)에 필요한 사용자 행동을 모았다.
+실 Supabase에는 migration/Edge가 적용됐고 기본 비인증 REST/RLS·CORS 경계를 확인했다. 미실행 묶음: Google OAuth/YouTube 실제 연결, 실 두 계정, iPhone/Android/카카오의 설치·완전 종료·복원·실재생, Vercel production 배포·rollback, 기존 Vercel 목업 프로젝트와 production 영향 최종 확인. [남은 연결 절차](pwa-release.md)에 필요한 사용자 행동을 모았다.
