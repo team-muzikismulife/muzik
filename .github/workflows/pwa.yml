@@ -23,8 +23,8 @@ jobs:
       - run: npm --prefix apps/web ci
       - run: npm test
       - run: npm run build
-      - run: npm --prefix apps/web run deploy:check
-      - run: npm --prefix apps/web run test:assets
+      - run: npm --prefix apps/web run check:vercel
+      - run: npm --prefix apps/web run test:hosting
       - run: npx playwright install --with-deps chromium
         working-directory: apps/web
       - run: npm --prefix apps/web run test:browser

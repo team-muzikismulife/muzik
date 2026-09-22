@@ -52,16 +52,16 @@ delete from private.operators where user_id = '<verified-auth-user-uuid>';
 
 ## 업데이트와 롤백
 
-1. 매 배포에 `VITE_APP_VERSION`으로 커밋을 기록하고 직전 정상 정적 산출물·환경 설정·manifest를 보존합니다. 같은 고정 origin과 manifest `id/start_url/scope`를 유지합니다.
+1. Vercel이 제공하는 `VERCEL_GIT_COMMIT_SHA`를 `VITE_APP_VERSION`으로 기록하고 직전 정상 production deployment·환경 설정·manifest를 보존합니다. 같은 고정 origin과 manifest `id/start_url/scope`를 유지합니다.
 2. worker는 새 파일을 준비하되 자동으로 페이지를 새로고침하지 않습니다. 저장 중이거나 보관되지 않은 입력이 있으면 적용을 막습니다. 초안과 미확정 요청은 전송 전에 보관하므로 완료 후 사용자가 적용해도 같은 ID/payload로 복구합니다. ‘나중에’는 현재 화면을 유지합니다.
 3. 업데이트 알림은 일반 문서 흐름에 있으므로 입력·완료 버튼 위에 떠 있지 않습니다. 다른 탭이 worker를 활성화해도 이 탭은 사용자 동의 없이 새로고침하지 않습니다. 구버전 동적 파일을 가져오지 못하면 경계 오류의 재시도/새로고침으로 복구하며 초안은 보존됩니다.
 4. 정적 HTML/JS/CSS/아이콘/폰트만 precache합니다. 인증 callback, 서버 응답, 팀 자료, YouTube 영상은 캐시하지 않습니다. 새 worker 활성화 시 이전 precache 항목을 정리합니다. 로컬 초안과 인증 SDK 저장소는 SW 캐시와 별개입니다.
-5. 문제 배포는 Cloudflare의 같은 서비스/주소에서 직전 정상 버전으로 rollback합니다. [공식 rollback 절차](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/)를 따르며 assets와 배포 버전의 결합 및 외부 리소스 변경 제약을 확인합니다. 프로젝트 연결/권한은 마지막 연결 단계에서 검증합니다.
-6. 이전 웹 버전이 현재 DB/Edge 계약 및 초안 version1과 호환되는지 먼저 확인합니다. DB schema/데이터 삭제나 Firebase 자동 전환은 롤백 수단으로 쓰지 않습니다. 연결되기 전 작성한 이 절차는 실제 Cloudflare rollback 완료 기록이 아닙니다.
+5. 문제 배포는 Vercel의 같은 production domain에서 직전 정상 deployment로 Instant Rollback합니다. [공식 rollback 절차](https://vercel.com/docs/deployments/rollback-production-deployment)를 따르며 Hobby는 바로 이전 production만 선택할 수 있음을 고려합니다. rollback 뒤 production domain 자동 할당 상태와 외부 리소스 호환성을 확인합니다.
+6. 이전 웹 버전이 현재 DB/Edge 계약 및 초안 version1과 호환되는지 먼저 확인합니다. DB schema/데이터 삭제나 Firebase 자동 전환은 롤백 수단으로 쓰지 않습니다. 연결되기 전 작성한 이 절차는 실제 Vercel rollback 완료 기록이 아닙니다.
 7. 고정 주소에서 worker update를 확인하고 사용자가 이전 정상 버전 적용을 선택한 뒤 버전 식별자·기존 초안·미확정 요청 재확인·로그인·팀·재생을 확인합니다. 캐시 전체/로컬 저장소 삭제를 기본 복구책으로 안내하지 않습니다.
 
 ## 검증 구분
 
-CI는 로컬 HTTPS에서 실제 generateSW 두 버전을 제공하여 대기/선택 적용/이전 캐시 정리/이전 버전 재적용을 검사합니다. 실제 Supabase 로컬 DB/Auth/Edge/RLS와 분리된 테스트 OAuth claim·YouTube 응답을 사용합니다. 브라우저 설치 이벤트와 standalone 표시 모드 fixture는 Android/iPhone 실제 설치·앱 종료 후 복원·실제 Google/YouTube·Cloudflare 배포 검증을 대체하지 않습니다.
+CI는 로컬 HTTPS에서 실제 generateSW 두 버전을 제공하여 대기/선택 적용/이전 캐시 정리/이전 버전 재적용을 검사합니다. 실제 Supabase 로컬 DB/Auth/Edge/RLS와 분리된 테스트 OAuth claim·YouTube 응답을 사용합니다. 브라우저 설치 이벤트와 standalone 표시 모드 fixture는 Android/iPhone 실제 설치·앱 종료 후 복원·실제 Google/YouTube·Vercel 배포 검증을 대체하지 않습니다.
 
 설치 안내 구현 참고: [MDN beforeinstallprompt](https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeinstallprompt_event), [Apple 홈 화면 웹 앱](https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios), [Vite PWA 명시 업데이트와 캐시 정리](https://vite-pwa-org.netlify.app/guide/prompt-for-update).

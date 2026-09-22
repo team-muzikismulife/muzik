@@ -9,6 +9,7 @@ export function recordMetric(
     | "install_accepted"
     | "standalone",
 ) {
+  if (import.meta.env.VITE_DEPLOY_ENV === "preview") return;
   if (!uid || !navigator.onLine) return;
   if (
     location.origin !== import.meta.env.VITE_PUBLIC_ORIGIN ||

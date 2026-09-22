@@ -57,7 +57,8 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   const mode = installMode({
     origin: location.origin,
     configuredOrigin: import.meta.env.VITE_PUBLIC_ORIGIN || "",
-    connected: Boolean(supabase),
+    connected:
+      Boolean(supabase) && import.meta.env.VITE_DEPLOY_ENV !== "preview",
     installed,
     userAgent: navigator.userAgent,
     prompt: Boolean(prompt),
