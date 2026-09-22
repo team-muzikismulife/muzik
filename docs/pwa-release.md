@@ -1,6 +1,6 @@
-# Vercel 연결 전 릴리즈 준비
+# Vercel 릴리즈 현황과 실행 순서
 
-현재 단계는 코드·격리 검사·설정/원복 준비다. 실제 Vercel/Supabase 프로젝트 연결, 공개 URL, 사용자 계정, 휴대폰 설치 결과를 확보했다는 뜻이 아니다. 기존 Firebase/Vercel 서비스와 데이터는 변경하지 않는다.
+코드·격리 검사와 원복 절차를 준비했고, 승인된 Supabase 프로젝트에는 migration 네 개와 `muzik` Edge Function을 적용했다. 새 Vercel 프로젝트와 고정 주소·공개 환경은 준비됐지만 실제 production deployment, Google/YouTube, 사용자 계정 흐름과 휴대폰 설치 결과는 아직 검증하지 않았다. 기존 Firebase/Vercel 서비스와 데이터는 변경하지 않는다.
 
 ## 고정 구성
 
@@ -36,14 +36,14 @@ npm --prefix apps/web run test:browser
 
 기본 `build`는 미연동 공개 화면도 만들 수 있다. `build:vercel`은 `VERCEL=1`, production/preview 대상, 유효한 Git SHA, Supabase 공개 설정과 고정 origin이 모두 없으면 실패한다. VITE 비밀키나 service role/YouTube 키가 있으면 대상과 무관하게 실패한다.
 
-## 마지막 연결 순서
+## 남은 연결 순서
 
-아래 행동은 **현재 실행하지 않았다**. 승인된 소유자가 계정과 대상을 확인한 뒤에만 수행하고, 값은 Vercel/Supabase secret에 넣으며 채팅·커밋·캡처에는 남기지 않는다.
+아래에서 Supabase 대상·migration·Edge·origin 적용은 완료됐다. 나머지는 승인된 소유자가 계정과 대상을 확인한 뒤에만 수행하고, 값은 Vercel/Supabase secret에 넣으며 채팅·커밋·캡처에는 남기지 않는다.
 
 1. 적격 Vercel 팀/요금제와 기존 `dist` 프로젝트의 용도를 확인한다. 유료 전환, 카드 등록, 새 프로젝트 생성, 기존 연결 변경은 별도 승인 없이 수행하지 않는다.
-2. Vercel 프로젝트의 Root Directory=`.`, Framework=`Vite`, Production Branch=`main`, Ignored Build Step=`Only build production`을 대조한다. install/build/output은 저장소 `vercel.json`을 따른다.
-3. Vercel Production 환경에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PUBLIC_ORIGIN`을 설정한다. `VITE_APP_VERSION`은 설정하지 않는다. Preview를 허용할 때는 같은 공개 값의 범위와 OAuth 허용 주소를 별도 검토한다.
-4. 승인된 Supabase 프로젝트를 확인하고 [CLI 적용 절차](pwa-supabase-deploy.md)에 따라 migration dry-run 후 적용한다. `YOUTUBE_API_KEY`, 정확한 HTTPS origin 목록인 `WEB_ORIGINS`를 Edge secrets에 설정하고 운영 `supabase/functions/muzik/index.ts`만 배포한다. `tests/fixtures/edge.ts`는 배포하지 않는다.
+2. 새 Vercel 프로젝트는 Root Directory=`.`, Framework=`Vite`, Production Branch=`main`, Ignored Build Step=`Only build production`, 저장소 `vercel.json`의 install/build/output으로 설정됐다. main 반영 전 다시 대조한다.
+3. Vercel Production 공개 환경과 `https://muzik-pwa.vercel.app`은 준비됐다. `VITE_APP_VERSION`은 설정하지 않고 Git SHA에서 생성한다. Preview를 허용할 때는 같은 공개 값의 범위와 OAuth 허용 주소를 별도 검토한다.
+4. 승인 Supabase ref `dtljjrvkfuotriivrdza`에 migration 네 개와 `muzik` Edge를 적용했다. `WEB_ORIGINS`는 정확한 production origin이며 함수는 ACTIVE/version 1/`verify_jwt=true`다. [CLI 적용 절차](pwa-supabase-deploy.md)에서 실제 상태와 재확인을 구분한다. `tests/fixtures/edge.ts`는 배포하지 않았다.
 5. Supabase Auth Site URL=`<PRODUCTION_ORIGIN>`, redirect=`<PRODUCTION_ORIGIN>/auth/callback`; Google authorized redirect=`https://<PROJECT_REF>.supabase.co/auth/v1/callback`을 대조한다.
 6. `feature/* -> dev` CI와 리뷰를 완료한 뒤 `dev -> main` release PR에서 전체 CI와 Vercel build 설정을 확인한다. main merge가 production 배포를 일으킬 수 있으므로 대상 프로젝트 확인 전 merge하지 않는다.
 7. 배포 후 HTTPS 응답, 직접 주소, 없는 자산 404, auth callback, manifest/아이콘/SW 버전, 두 Google 계정의 팀·곡·RLS·신고·피드백·Realtime와 실제 YouTube 제한 영상을 확인한다.

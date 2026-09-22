@@ -1,3 +1,13 @@
+# PWA-06 Supabase 실제 연결·비인증 경계 확인
+
+2026-09-22. 승인 ref `dtljjrvkfuotriivrdza`를 독립 확인했다. `migration list`에서 Local/Remote `202609210001`~`202609210004`가 모두 일치했고, `muzik` Edge Function은 ACTIVE/version 1/`verify_jwt=true`였다.
+
+공개 anon key를 메모리에만 사용한 읽기 전용 검사에서 `rooms`, `members`, `tracks`, `days` 익명 조회는 모두 HTTP 401/`42501`, private schema 조회는 HTTP 406/`PGRST106`이었다. 승인 origin `https://muzik-pwa.vercel.app` preflight는 204·정확한 ACAO·`POST,OPTIONS`·`no-store`, 미승인 origin은 403·ACAO 없음이었다. 인증 헤더 없음, 형식이 잘못된 JWT, anon JWT의 Edge POST는 모두 401이었다. 운영 사용자·팀·곡 fixture와 데이터 쓰기는 없었다.
+
+CLI runbook은 공식 브라우저 `login --no-browser --name muzik-pwa --profile supabase --agent no`와 자동 임시 login role을 기본 경로로 정정했다. PAT와 DB 비밀번호는 실패 시 대안이지 필수 선행값이 아니다. Supabase backend 적용과 Google OAuth/YouTube/두 사용자/실기기/Vercel production 미검증을 문서에서 구분했다. 비밀값을 출력·커밋하지 않았고 클라우드 설정·main/dev는 변경하지 않았다.
+
+---
+
 # PWA-05 공개 저장소 정책 정정과 Supabase 적용 준비
 
 2026-09-22. GitHub API에서 저장소 PUBLIC을 확인했다. Vercel 최신 Git 문서는 Hobby의 비공개 조직 저장소 제한과 공개 저장소를 구분한다. 조직 소유라는 이유만으로 유료 요금제가 필수라는 이전 설명을 정정했다. Hobby 개인·비상업 조건과 실제 연결 권한은 별도 확인 사항이다.
