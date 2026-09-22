@@ -1,0 +1,62 @@
+# Vercel 릴리즈 현황과 실행 순서
+
+코드·격리 검사와 원복 절차를 준비했고, 승인된 Supabase 프로젝트에는 migration 네 개와 `muzik` Edge Function을 적용했다. 새 Vercel 프로젝트와 고정 주소·공개 환경은 준비됐지만 실제 production deployment, Google/YouTube, 사용자 계정 흐름과 휴대폰 설치 결과는 아직 검증하지 않았다. 기존 Vercel 목업의 production branch만 격리했고 기존 배포·주소·환경변수·데이터는 변경하지 않았다.
+
+## 고정 구성
+
+- React/Vite 정적 SPA이며 SSR, Vercel Functions, Cron을 사용하지 않는다. 백엔드는 Supabase Auth/PostgreSQL/Edge Functions/Realtime이다.
+- Vercel 프로젝트 Root Directory는 저장소 루트 `.`이다. `vercel.json`의 install=`npm --prefix apps/web ci`, build=`npm --prefix apps/web run build:vercel`, output=`apps/web/dist`를 사용한다. `packages/domain`과 루트 설정을 함께 읽기 위해 Root Directory를 `apps/web`로 바꾸지 않는다.
+- 신규 `muzik-pwa`의 Production Branch는 `main`이다. `dev`는 통합 브랜치이며 production 주소를 갱신하지 않는다. Project Settings의 Ignored Build Step은 `Only build production`으로 설정해 dev/feature push 배포를 막는다. Preview QA를 다시 켤 때만 이 설정을 재검토한다. [Git/Production Branch](https://vercel.com/docs/git), [Ignored Build Step](https://vercel.com/docs/project-configuration/project-settings#ignored-build-step).
+- 앱 직접 주소 `/login`, `/auth/callback`, `/operations`, `/r/:code`, `/room/*`만 `index.html`로 rewrite한다. 없는 `/assets/*`는 HTML로 바꾸지 않고 404를 반환한다.
+- manifest의 `id/start_url/scope`는 `/`, display는 standalone이다. PNG 192/512, maskable 512, Apple 180 아이콘을 빌드에서 실제 PNG로 생성한다.
+- `sw.js`, manifest, `index.html`은 매번 재검증하고 해시된 `/assets/*`만 immutable 캐시한다. 인증 callback·팀/API 응답·음악은 Service Worker 런타임 캐시에 넣지 않는다.
+- `VITE_PUBLIC_ORIGIN`은 경로·끝 슬래시 없는 production HTTPS origin이다. `VITE_APP_VERSION`은 Vercel의 `VERCEL_GIT_COMMIT_SHA`로만 주입한다. 클라이언트에는 Supabase public URL과 anon/publishable key만 둔다.
+- Preview 빌드는 코드상 설치 안내/설치 지표를 차단한다. Preview 로그인 검증이 필요하면 해당 정확한 HTTPS origin만 Supabase redirect와 `WEB_ORIGINS`에 임시 승인하고 검증 뒤 제거한다. 광범위 wildcard는 사용하지 않는다.
+
+## 계정·요금제 보류 조건
+
+2026-09-22 GitHub API 확인 결과 `team-muzikismulife/muzik`은 PUBLIC 저장소다. 최신 Vercel Git 문서의 Hobby 제한은 GitHub 조직의 PRIVATE 저장소 배포에 적용되며 공개 저장소는 별도로 구분한다. 조직 소유라는 이유만으로 유료 전환이 필수라고 판단하지 않는다. 실제 Git 연결 권한과 배포 승인은 선택한 프로젝트에서 확인한다. Hobby의 개인·비상업 용도 조건은 별도로 적용된다. [Vercel Git 정책](https://vercel.com/docs/git#deploying-private-git-repositories), [Hobby plan](https://vercel.com/docs/plans/hobby).
+
+이미 공개된 `dist-iota-six-90.vercel.app` Expo 목업은 이 React/Vite 릴리즈의 증거가 아니다. 2026-09-22 인증된 Project Settings에서 기존 `muzikismylife/dist`의 Production Branch를 `main`에서 `demo/spark-web`로 저장하고 성공 UI를 확인했으며, Ignored Build Step=`Only build production`도 재확인했다. 현재 배포·주소·환경변수는 변경하거나 redeploy하지 않았다. 원격 `demo/spark-web` HEAD `af763f3`과 실제 배포 SHA `c13b952`가 다르므로 임의 redeploy하면 안 된다.
+
+신규 `muzik-pwa`는 Production Branch=`main`, Ignored Build Step=`Only build production`이다. 최신 기능/release SHA의 Vercel SUCCESS는 모두 `Canceled by Ignored Build Step`으로 Preview 차단을 뜻하며 앱 build·production 배포 성공 증거가 아니다. 실제 production deployment는 OAuth/YouTube 연결과 release 승인 뒤에 진행한다.
+
+## 연결 없이 실행하는 검사
+
+저장소 루트에서 Node 22로 실행한다. 로그인, 외부 업로드, Vercel 프로젝트 연결은 하지 않는다.
+
+```sh
+npm --prefix apps/web ci
+npm test
+npm run build
+npm --prefix apps/web run check:vercel
+npm --prefix apps/web run test:hosting
+npm --prefix apps/web run test:browser
+```
+
+`check:vercel`은 `vercel.json`과 package scripts의 로컬 계약만 검사한다. `test:hosting`은 포트 4175의 로컬 계약 서버에서 직접 주소, 404, 보안/캐시 헤더, MIME, manifest와 실제 PNG 크기를 검사한다. 둘 다 실제 Vercel build/deploy/DNS/TLS 검증이 아니다. Docker 기반 DB/Auth/Edge/RLS/Realtime 회귀는 CI에서 실행한다.
+
+기본 `build`는 미연동 공개 화면도 만들 수 있다. `build:vercel`은 `VERCEL=1`, production/preview 대상, 유효한 Git SHA, Supabase 공개 설정과 고정 origin이 모두 없으면 실패한다. VITE 비밀키나 service role/YouTube 키가 있으면 대상과 무관하게 실패한다.
+
+## 남은 연결 순서
+
+아래에서 Supabase 대상·migration·Edge·origin 적용은 완료됐다. 나머지는 승인된 소유자가 계정과 대상을 확인한 뒤에만 수행하고, 값은 Vercel/Supabase secret에 넣으며 채팅·커밋·캡처에는 남기지 않는다.
+
+1. 적격 Vercel 팀/요금제를 유지한다. 기존 `dist`는 위 격리 상태와 현재 배포를 보존하고, 원격 branch HEAD를 현재 배포에 임의 redeploy하지 않는다.
+2. 새 Vercel 프로젝트는 Root Directory=`.`, Framework=`Vite`, Production Branch=`main`, Ignored Build Step=`Only build production`, 저장소 `vercel.json`의 install/build/output으로 설정됐다. main 반영 전 다시 대조한다.
+3. Vercel Production 공개 환경과 `https://muzik-pwa.vercel.app`은 준비됐다. `VITE_APP_VERSION`은 설정하지 않고 Git SHA에서 생성한다. Preview를 허용할 때는 같은 공개 값의 범위와 OAuth 허용 주소를 별도 검토한다.
+4. 승인 Supabase ref `dtljjrvkfuotriivrdza`에 migration 네 개와 `muzik` Edge를 적용했다. `WEB_ORIGINS`는 정확한 production origin이며 함수는 ACTIVE/version 1/`verify_jwt=true`다. [CLI 적용 절차](pwa-supabase-deploy.md)에서 실제 상태와 재확인을 구분한다. `tests/fixtures/edge.ts`는 배포하지 않았다.
+5. Supabase Auth Site URL=`<PRODUCTION_ORIGIN>`, redirect=`<PRODUCTION_ORIGIN>/auth/callback`; Google authorized redirect=`https://<PROJECT_REF>.supabase.co/auth/v1/callback`을 대조한다.
+6. `feature/* -> dev` CI와 리뷰를 완료한 뒤 `dev -> main` release PR에서 전체 CI와 Vercel build 설정을 확인한다. main merge가 production 배포를 일으킬 수 있으므로 대상 프로젝트 확인 전 merge하지 않는다.
+7. 배포 후 HTTPS 응답, 직접 주소, 없는 자산 404, auth callback, manifest/아이콘/SW 버전, 두 Google 계정의 팀·곡·RLS·신고·피드백·Realtime와 실제 YouTube 제한 영상을 확인한다.
+8. iPhone Safari/설치 앱, Android Chrome/설치 앱, 카카오 초대에서 설치·완전 종료·재실행·같은 계정 복원, offline cold reopen, 키보드, 업데이트·미확정 요청, 실제 재생을 기록한다.
+
+## 원복
+
+문제 배포는 Vercel Dashboard의 production deployment와 커밋 SHA를 확인한 뒤 Instant Rollback으로 직전 정상 정적 배포를 다시 가리킨다. Hobby는 바로 이전 production으로만 rollback 가능하고, Pro/Enterprise는 적격 이전 배포를 선택할 수 있다. 롤백 뒤 production domain 자동 할당 상태와 현재 Supabase/Edge 계약 호환성을 다시 확인한다. [Vercel rollback](https://vercel.com/docs/deployments/rollback-production-deployment).
+
+DB migration 역실행, 데이터 삭제, Firebase 자동 전환은 웹 롤백 수단이 아니다. 이전 웹이 현재 schema/Edge/초안 version 1과 호환되지 않으면 먼저 전진 수정한다. 실제 Vercel rollback은 아직 실행하지 않았다.
+
+## 병합 보류
+
+기능 PR→dev→main 순서를 유지한다. 자동 병합, force/admin 우회, 기존 실패 체크 삭제를 사용하지 않는다. 기존 `dist` 격리와 신규 `muzik-pwa`의 Production Branch·Ignored Build Step은 인증된 화면에서 확인했다. 신규 프로젝트의 root/build/output·환경변수·도메인·요금제를 main 반영 전 다시 대조하고, 독립 리뷰와 최신 CI를 통과하기 전에는 PR을 merge하지 않는다.

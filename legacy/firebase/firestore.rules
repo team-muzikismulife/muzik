@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isMember(roomId) {
+      return request.auth != null && exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
+    }
+    match /config/app { allow read: if true; }
+    match /rooms/{roomId} {
+      allow read: if isMember(roomId);
+      match /members/{uid} { allow read: if isMember(roomId); }
+      match /tracks/{trackId} { allow read: if isMember(roomId); }
+      match /days/{dateKey} { allow read: if isMember(roomId); }
+    }
+    match /{path=**}/members/{memberId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+    // 초대, 신고, 운영 아카이브, 이벤트 및 모든 쓰기는 callable Admin SDK 전용.
+    match /{document=**} { allow write: if false; }
+  }
+}

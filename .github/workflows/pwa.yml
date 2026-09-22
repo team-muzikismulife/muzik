@@ -1,0 +1,72 @@
+name: PWA Core
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+permissions:
+  contents: read
+concurrency:
+  group: pwa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm --prefix apps/web ci
+      - run: npm test
+      - run: npm run build
+      - run: npm --prefix apps/web run check:vercel
+      - run: npm --prefix apps/web run test:hosting
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: npm --prefix apps/web run test:browser
+  supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: npm --prefix apps/web ci
+      - run: deno check --config supabase/functions/deno.json supabase/functions/muzik/index.ts tests/fixtures/edge.ts
+      - run: node tests/fixtures/prepare-supabase.mjs
+      - name: 로컬 Supabase 시작 (키 출력 금지)
+        run: apps/web/node_modules/.bin/supabase start --workdir scratch/supabase-ci > "$RUNNER_TEMP/supabase-start.log" 2>&1
+      - name: 테스트 전용 Edge 시작
+        run: |
+          apps/web/node_modules/.bin/supabase functions serve --workdir scratch/supabase-ci > "$RUNNER_TEMP/edge.log" 2>&1 &
+          sleep 10
+      - run: npm --prefix apps/web run test:db
+      - run: apps/web/node_modules/.bin/tsx tests/fixtures/build-local-web.ts
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: npm --prefix apps/web run test:browser
+        env:
+          PWA_TEST_BACKEND: '1'
+      - name: 검토용 화면 보존
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pwa-screenshots
+          path: tests/artifacts/pwa/**/*.png
+          retention-days: 7
+      - name: 비밀값 제외 실패 진단
+        if: failure()
+        run: node tests/fixtures/redact-log.mjs "$RUNNER_TEMP/supabase-start.log" "$RUNNER_TEMP/edge.log"
+      - name: 로컬 컨테이너 종료
+        if: always()
+        run: apps/web/node_modules/.bin/supabase stop --workdir scratch/supabase-ci --no-backup > /dev/null 2>&1 || true
